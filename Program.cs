@@ -46,6 +46,7 @@ class Program
         */
         // Temporary hardcoding for quick debugging
         bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\ascension_bsp0.xml");
+        string shaders_output_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\ascension\shaders";
 
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
         string h3ek_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK";
@@ -80,6 +81,23 @@ class Program
                 File.Delete(xmlFile);
             }
         }
+
+        // Create bitmap tga export folder
+        string tga_output_path = Path.Combine(Directory.GetCurrentDirectory(), "textures_output");
+        if (!Directory.Exists(tga_output_path))
+        {
+            Directory.CreateDirectory(tga_output_path);
+        }
+        else
+        {
+            // Delete existing XML files
+            string[] tgaFiles = Directory.GetFiles(tga_output_path, "*.tga");
+            foreach (string tgaFile in tgaFiles)
+            {
+                File.Delete(tgaFile);
+            }
+        }
+
         Console.WriteLine("\nBeginning .shader to .xml conversion...\nPlease wait...");
         ShaderExtractor(all_h2_shader_paths, h2ek_path, xml_output_path);
         Console.WriteLine("\nAll shaders converted to XML!\n\nGrabbing all referenced bitmap paths:\n");
@@ -101,7 +119,9 @@ class Program
             }
         }
 
-        Console.WriteLine("\nObtained all referenced bitmaps!");
+        Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
+        ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
+        Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -235,5 +255,31 @@ class Program
             });
         }
         return all_shader_data;
+    }
+
+    static void ExtractBitmaps(List<string> all_bitmap_refs, string h2ek_path, string tga_output_path)
+    {
+        string tool_path = h2ek_path + @"\tool.exe";
+
+        foreach (string bitmap in all_bitmap_refs)
+        {
+            List<string> argumentList = new List<string>
+            {
+                "export-bitmap-tga",
+                "\"" + bitmap + "\"",
+                "\"" + tga_output_path + "\\\\" + "\""
+            };
+
+            string arguments = string.Join(" ", argumentList);
+            
+
+            RunTool(tool_path, arguments, h2ek_path);
+            Console.WriteLine("Extracted " + bitmap);
+        }
+    }
+    
+    static void TGAToTIF()
+    {
+
     }
 }
