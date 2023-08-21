@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Xml;
 using System.Linq;
+using ImageMagick;
 using System.Diagnostics;
 using System.Collections.Generic;
 
@@ -75,7 +76,7 @@ class Program
         else
         {
             // Delete existing XML files
-            string[] xmlFiles = Directory.GetFiles(xml_output_path, "*.xml");
+            string[] xmlFiles = Directory.GetFiles(xml_output_path, "*.xml");        
             foreach (string xmlFile in xmlFiles)
             {
                 File.Delete(xmlFile);
@@ -84,17 +85,23 @@ class Program
 
         // Create bitmap tga export folder
         string tga_output_path = Path.Combine(Directory.GetCurrentDirectory(), "textures_output");
+
         if (!Directory.Exists(tga_output_path))
         {
             Directory.CreateDirectory(tga_output_path);
         }
         else
         {
-            // Delete existing XML files
+            // Delete existing TGA/TIF files
             string[] tgaFiles = Directory.GetFiles(tga_output_path, "*.tga");
+            string[] tifFiles = Directory.GetFiles(tga_output_path, "*.tif");
             foreach (string tgaFile in tgaFiles)
             {
                 File.Delete(tgaFile);
+            }
+            foreach (string tifFile in tifFiles)
+            {
+                File.Delete(tifFile);
             }
         }
 
@@ -122,6 +129,8 @@ class Program
         Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
         ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
         Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
+        TGAToTIF(tga_output_path);
+        Console.WriteLine("Done!");
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -278,8 +287,25 @@ class Program
         }
     }
     
-    static void TGAToTIF()
+    static void TGAToTIF(string tga_output_path)
     {
+        string[] tga_files = Directory.GetFiles(tga_output_path, "*.tga");
+        foreach (string tga_file in tga_files)
+        {
+            string tif_output_path = (tga_file.Replace("_00_00", "")).Replace(".tga", ".tif");
 
+            using (var image = new MagickImage(tga_file))
+            {
+                image.Format = MagickFormat.Tif;
+                image.Write(tif_output_path);
+            }
+        }
+
+        // Delete TGA files
+        string[] tgaFiles = Directory.GetFiles(tga_output_path, "*.tga");
+        foreach (string tgaFile in tga_files)
+        {
+            File.Delete(tgaFile);
+        }
     }
 }

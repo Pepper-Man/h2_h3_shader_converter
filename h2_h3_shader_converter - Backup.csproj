@@ -7,13 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.2.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="managedblam">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\H3EK\bin\ManagedBlam.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.2.0" />
+    <PackageReference Include="Magick.NET.Core" Version="13.2.0" />
   </ItemGroup>
 
 </Project>
