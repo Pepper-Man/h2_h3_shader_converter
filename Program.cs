@@ -40,7 +40,7 @@ class Program
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         foreach (string bsp in bsp_paths)
         {
-            List<string> bsp_shader_paths = Convert_XML(bsp, h2ek_path, h3ek_path);
+            List<string> bsp_shader_paths = Convert_XML(bsp);
             foreach (string path in bsp_shader_paths)
             {
                 string full_path = h2ek_path + @"\tags\" + path + ".shader";
@@ -52,27 +52,26 @@ class Program
         }
 
         // Create shader xml export folder
-        string folderName = "shader_xml";
-        string folderPath = Path.Combine(Directory.GetCurrentDirectory(), folderName);
-        if (!Directory.Exists(folderPath))
+        string xml_output_path = Path.Combine(Directory.GetCurrentDirectory(), "shader_xml");
+        if (!Directory.Exists(xml_output_path))
         {
-            Directory.CreateDirectory(folderPath);
+            Directory.CreateDirectory(xml_output_path);
         }
         else
         {
             // Delete existing XML files
-            string[] xmlFiles = Directory.GetFiles(folderPath, "*.xml");
+            string[] xmlFiles = Directory.GetFiles(xml_output_path, "*.xml");
             foreach (string xmlFile in xmlFiles)
             {
                 File.Delete(xmlFile);
             }
         }
         Console.WriteLine("\nBeginning .shader to .xml conversion...\nPlease wait...");
-        ShaderExtractor(all_h2_shader_paths, h2ek_path, folderPath);
+        ShaderExtractor(all_h2_shader_paths, h2ek_path, xml_output_path);
         Console.WriteLine("\nAll shaders converted to XML!");
     }
 
-    static List<string> Convert_XML(string bsp_path, string h2ek_path, string h3ek_path)
+    static List<string> Convert_XML(string bsp_path)
     {
         Console.WriteLine("Beginning parsing XML");
 
@@ -125,25 +124,30 @@ class Program
 
             string arguments = string.Join(" ", argumentList);
 
-            ProcessStartInfo processStartInfo = new ProcessStartInfo
-            {
-                FileName = tool_path,
-                Arguments = arguments,
-                WorkingDirectory = h2ek_path,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            Process process = new Process
-            {
-                StartInfo = processStartInfo
-            };
-
-            process.Start();
-            process.WaitForExit();
-            process.Close();
+            RunTool(tool_path, arguments, h2ek_path);
         }
+    }
+
+    static void RunTool(string tool_path, string arguments, string h2ek_path)
+    {
+        ProcessStartInfo processStartInfo = new ProcessStartInfo
+        {
+            FileName = tool_path,
+            Arguments = arguments,
+            WorkingDirectory = h2ek_path,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        Process process = new Process
+        {
+            StartInfo = processStartInfo
+        };
+
+        process.Start();
+        process.WaitForExit();
+        process.Close();
     }
 }
