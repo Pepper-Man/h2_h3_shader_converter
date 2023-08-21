@@ -6,6 +6,20 @@ using System.Linq;
 using System.Diagnostics;
 using System.Collections.Generic;
 
+class Shader
+{
+    public List<Parameter> parameters { get; set; }
+}
+
+class Parameter
+{
+    public string name { get; set; }
+    public string type { get; set; }
+    public string bitmap { get; set; }
+    public string value { get; set; }
+    public string colour { get; set; }
+}
+
 class Program
 {
     static void Main(string[] args)
@@ -40,7 +54,7 @@ class Program
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         foreach (string bsp in bsp_paths)
         {
-            List<string> bsp_shader_paths = Convert_XML(bsp);
+            List<string> bsp_shader_paths = GetShaders(bsp);
             foreach (string path in bsp_shader_paths)
             {
                 string full_path = h2ek_path + @"\tags\" + path + ".shader";
@@ -68,10 +82,29 @@ class Program
         }
         Console.WriteLine("\nBeginning .shader to .xml conversion...\nPlease wait...");
         ShaderExtractor(all_h2_shader_paths, h2ek_path, xml_output_path);
-        Console.WriteLine("\nAll shaders converted to XML!");
+        Console.WriteLine("\nAll shaders converted to XML!\n\nGrabbing all referenced bitmap paths:\n");
+        List<Shader> all_shader_data = GetShaderData(xml_output_path);
+        List<string> all_bitmap_refs = new List<string>();
+        
+        foreach (Shader shader in all_shader_data)
+        {
+            foreach (Parameter param in shader.parameters)
+            {
+                if (!String.IsNullOrEmpty(param.bitmap))
+                {
+                    if (!all_bitmap_refs.Contains(param.bitmap))
+                    {
+                        all_bitmap_refs.Add(param.bitmap);
+                        Console.WriteLine(param.bitmap);
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine("\nObtained all referenced bitmaps!");
     }
 
-    static List<string> Convert_XML(string bsp_path)
+    static List<string> GetShaders(string bsp_path)
     {
         Console.WriteLine("Beginning parsing XML");
 
@@ -117,10 +150,10 @@ class Program
         {
             List<string> argumentList = new List<string>
             {
-                "export-tag-to-xml"
+                "export-tag-to-xml",
+                "\"" + shader_path + "\"",
+                "\"" + xml_output_path + "\\" + shader_path.Split('\\').Last().Replace(".shader", "") + ".xml" + "\""
             };
-            argumentList.Add("\"" + shader_path + "\"");
-            argumentList.Add("\"" + xml_output_path + "\\" + shader_path.Split('\\').Last().Replace(".shader", "") + ".xml" + "\"");
 
             string arguments = string.Join(" ", argumentList);
 
@@ -149,5 +182,58 @@ class Program
         process.Start();
         process.WaitForExit();
         process.Close();
+    }
+    
+    static List<Shader> GetShaderData(string xml_output_path)
+    {
+        List<Shader> all_shader_data = new List<Shader>();
+        string[] xml_files = Directory.GetFiles(xml_output_path, "*.xml");
+        foreach (string xml_file in xml_files)
+        {
+            XmlDocument shader_file = new XmlDocument();
+            shader_file.Load(xml_file);
+            XmlNode root = shader_file.DocumentElement;
+            List<Parameter> shader_parameters = new List<Parameter>();
+
+            XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
+
+            foreach (XmlNode param in params_block)
+            {
+                bool end = false;
+                int i = 0;
+                while (!end)
+                {
+                    XmlNode element = param.SelectSingleNode("./element[@index='" + i + "']");
+                    if (element != null)
+                    {
+                        string prm_name = element.SelectSingleNode("./field[@name='name']").InnerText.Trim();
+                        string prm_type = element.SelectSingleNode("./field[@name='type']").InnerText.Trim();
+                        string prm_bitmap = element.SelectSingleNode("./tag_reference[@name='bitmap']").InnerText.Trim();
+                        string prm_value = element.SelectSingleNode("./field[@name='const value']").InnerText.Trim();
+                        string prm_colour = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+
+                        shader_parameters.Add(new Parameter
+                        {
+                            name = prm_name,
+                            type = prm_type,
+                            bitmap = prm_bitmap,
+                            value = prm_value,
+                            colour = prm_colour
+                        });
+
+                        i++;
+                    }
+                    else
+                    {
+                        end = true;
+                    }
+                }
+            }
+            all_shader_data.Add(new Shader
+            {
+                parameters= shader_parameters
+            });
+        }
+        return all_shader_data;
     }
 }
