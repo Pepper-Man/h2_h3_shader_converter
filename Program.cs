@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Xml;
+using Bungie.Tags;
 using System.Linq;
 using ImageMagick;
 using System.Diagnostics;
@@ -9,6 +10,7 @@ using System.Collections.Generic;
 
 class Shader
 {
+    public string name { get; set; }
     public List<Parameter> parameters { get; set; }
 }
 
@@ -131,7 +133,9 @@ class Program
         ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
         Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
         TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
-        Console.WriteLine("\nFinished importing bitmaps into H3");
+        Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
+        MakeShaderTags(all_shader_data, bitmaps_dir);
+        Console.WriteLine("\nSuccessfully created all shader tags");
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -251,6 +255,7 @@ class Program
             shader_file.Load(xml_file);
             XmlNode root = shader_file.DocumentElement;
             List<Parameter> shader_parameters = new List<Parameter>();
+            string shader_name = (new DirectoryInfo(xml_file).Name).Replace(".xml", "");
 
             XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
 
@@ -288,8 +293,9 @@ class Program
             }
             all_shader_data.Add(new Shader
             {
-                parameters= shader_parameters
-            });
+                name = shader_name,
+                parameters = shader_parameters
+            }); ;
         }
         return all_shader_data;
     }
@@ -366,5 +372,21 @@ class Program
 
         string arguments = string.Join(" ", argumentList);
         RunTool(tool_path, arguments, h3ek_path);
+    }
+
+    static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir)
+    {
+        string shaders_dir = (bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()).Replace("bitmaps", "shaders");
+
+        foreach (Shader shader in all_shader_data)
+        {
+            string shader_name = Path.Combine(shaders_dir, shader.name);
+            var tag_path = TagPath.FromPathAndType(shader_name, "rmsh*");
+
+            // Create the tag
+            TagFile tagFile = new TagFile();
+            tagFile.New(tag_path);
+            tagFile.Save();
+        }
     }
 }
