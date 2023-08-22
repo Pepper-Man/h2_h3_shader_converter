@@ -47,8 +47,9 @@ class Program
         */
         // Temporary hardcoding for quick debugging
         bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\ascension_bsp0.xml");
-        string shaders_output_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\ascension\shaders";
+        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\ascension\ascension.scenario";
 
+        string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
         string h3ek_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK";
         List<string> all_h2_shader_paths = new List<string>();
@@ -129,8 +130,8 @@ class Program
         Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
         ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
         Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
-        TGAToTIF(tga_output_path);
-        Console.WriteLine("Done!");
+        TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
+        Console.WriteLine("\nFinished importing bitmaps into H3");
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -190,17 +191,17 @@ class Program
         }
     }
 
-    static void RunTool(string tool_path, string arguments, string h2ek_path)
+    static void RunTool(string tool_path, string arguments, string ek_path)
     {
         ProcessStartInfo processStartInfo = new ProcessStartInfo
         {
             FileName = tool_path,
             Arguments = arguments,
-            WorkingDirectory = h2ek_path,
+            WorkingDirectory = ek_path,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            CreateNoWindow = true
+            CreateNoWindow = false
         };
 
         Process process = new Process
@@ -208,11 +209,38 @@ class Program
             StartInfo = processStartInfo
         };
 
+        if (tool_path.Contains("H3EK"))
+        {
+            process.OutputDataReceived += Process_OutputDataReceived;
+            process.ErrorDataReceived += Process_ErrorDataReceived;
+        }
+        
         process.Start();
+        if (tool_path.Contains("H3EK"))
+        {
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
         process.WaitForExit();
         process.Close();
     }
-    
+
+    private static void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
+    {
+        if (e.Data != null)
+        {
+            Console.WriteLine(e.Data);
+        }
+    }
+
+    private static void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+    {
+        if (e.Data != null)
+        {
+            Console.WriteLine("Error: " + e.Data);
+        }
+    }
+
     static List<Shader> GetShaderData(string xml_output_path)
     {
         List<Shader> all_shader_data = new List<Shader>();
@@ -287,7 +315,7 @@ class Program
         }
     }
     
-    static void TGAToTIF(string tga_output_path)
+    static void TGAToTIF(string tga_output_path, string bitmaps_dir, string h3ek_path)
     {
         string[] tga_files = Directory.GetFiles(tga_output_path, "*.tga");
         foreach (string tga_file in tga_files)
@@ -301,11 +329,42 @@ class Program
             }
         }
 
+        string[] tifFiles = Directory.GetFiles(tga_output_path, "*.tif");
+
         // Delete TGA files
-        string[] tgaFiles = Directory.GetFiles(tga_output_path, "*.tga");
         foreach (string tgaFile in tga_files)
         {
             File.Delete(tgaFile);
         }
+
+        // Move TIF files to scenario bitmaps directory
+        if (!Directory.Exists(bitmaps_dir))
+        {
+            Directory.CreateDirectory(bitmaps_dir);
+        }
+
+        foreach (string tifFile in tifFiles)
+        {
+            string file_name = tifFile.Split('\\').Last();
+            try
+            {
+                File.Move(tifFile, bitmaps_dir + "\\" + file_name);
+            }
+            catch (IOException ex)
+            {
+                // File already exists, dont worry about it
+            }
+        }
+
+        Console.WriteLine("Importing bitmaps...");
+        string tool_path = h3ek_path + @"\tool.exe";
+        List<string> argumentList = new List<string>
+            {
+                "bitmaps",
+                bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()
+            };
+
+        string arguments = string.Join(" ", argumentList);
+        RunTool(tool_path, arguments, h3ek_path);
     }
 }
