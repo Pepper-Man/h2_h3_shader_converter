@@ -376,6 +376,7 @@ class Program
 
     static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir)
     {
+        string bitmap_tags_dir = bitmaps_dir.Replace("data", "tags").Split(new[] { "\\tags\\" }, StringSplitOptions.None).LastOrDefault();
         string shaders_dir = (bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()).Replace("bitmaps", "shaders");
 
         foreach (Shader shader in all_shader_data)
@@ -386,6 +387,36 @@ class Program
             // Create the tag
             TagFile tagFile = new TagFile();
             tagFile.New(tag_path);
+            
+            // Set bump on
+            var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
+            bump_option.Data = 2; // 1 for detail bump
+
+            foreach (Parameter param in shader.parameters)
+            {
+                if (param.name == "base_map")
+                {
+                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                    string base_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                    // Add base map parameter
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var param_name = (TagFieldElementStringID)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/StringID:parameter name");
+                    param_name.Data = "base_map";
+                    var param_type = (TagFieldEnum)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/LongEnum:parameter type");
+                    param_type.Value = 0;
+
+                    // Set base map
+                    var base_map = (TagFieldReference)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/Reference:bitmap");
+                    base_map.Path = TagPath.FromPathAndType(base_map_path, "bitm*");
+
+                    // Set aniso
+                    var flags = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/ShortInteger:bitmap flags");
+                    flags.Data = 1;
+                    var aniso = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/ShortInteger:bitmap filter mode");
+                    aniso.Data = 6;
+                }
+            }
             tagFile.Save();
         }
     }
