@@ -22,6 +22,8 @@ class Parameter
     public string bitmap { get; set; }
     public string value { get; set; }
     public string colour { get; set; }
+    public string scalex { get; set; }
+    public string scaley { get; set; }
 }
 
 class Program
@@ -131,7 +133,7 @@ class Program
         }
 
         Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
-        ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
+        Task task = ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
         Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
         TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
@@ -437,9 +439,39 @@ class Program
                     var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
                     param_type.Value = 0;
 
-                    // Set base map
+                    // Set detail map
                     var detail_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
                     detail_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
+
+                    // Set aniso
+                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                    flags.Data = 1;
+                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                    aniso.Data = 6;
+
+                    param_index++;
+                }
+
+                if (param.name == "secondary_detail_map")
+                {
+                    // Set two detail
+                    // Set bump on
+                    var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
+                    albedo_option.Data = 7; // 7 for two detail
+
+                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                    string sec_detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                    // Add detail map parameter
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    param_name.Data = "detail_map2";
+                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    param_type.Value = 0;
+
+                    // Set detail map
+                    var detail2_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                    detail2_map.Path = TagPath.FromPathAndType(sec_detail_map_path, "bitm*");
 
                     // Set aniso
                     var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
