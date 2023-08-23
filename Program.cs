@@ -396,6 +396,8 @@ class Program
             var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
             bump_option.Data = 2; // 1 for detail bump
 
+            int param_index = 0;
+
             foreach (Parameter param in shader.parameters)
             {
                 if (param.name == "base_map")
@@ -405,20 +407,47 @@ class Program
 
                     // Add base map parameter
                     ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var param_name = (TagFieldElementStringID)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/StringID:parameter name");
+                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
                     param_name.Data = "base_map";
-                    var param_type = (TagFieldEnum)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/LongEnum:parameter type");
+                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
                     param_type.Value = 0;
 
                     // Set base map
-                    var base_map = (TagFieldReference)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/Reference:bitmap");
+                    var base_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
                     base_map.Path = TagPath.FromPathAndType(base_map_path, "bitm*");
 
                     // Set aniso
-                    var flags = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/ShortInteger:bitmap flags");
+                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
                     flags.Data = 1;
-                    var aniso = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:parameters[0]/ShortInteger:bitmap filter mode");
+                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
+
+                    param_index++;
+                }
+
+                if (param.name == "detail_map")
+                {
+                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                    string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                    // Add detail map parameter
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    param_name.Data = "detail_map";
+                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    param_type.Value = 0;
+
+                    // Set base map
+                    var base_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                    base_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
+
+                    // Set aniso
+                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                    flags.Data = 1;
+                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                    aniso.Data = 6;
+
+                    param_index++;
                 }
             }
             tagFile.Save();
