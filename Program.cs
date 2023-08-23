@@ -6,6 +6,7 @@ using Bungie.Tags;
 using System.Linq;
 using ImageMagick;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
 class Shader
@@ -300,8 +301,9 @@ class Program
         return all_shader_data;
     }
 
-    static void ExtractBitmaps(List<string> all_bitmap_refs, string h2ek_path, string tga_output_path)
+    static async Task ExtractBitmaps(List<string> all_bitmap_refs, string h2ek_path, string tga_output_path)
     {
+        List<Task> tasks = new List<Task>();
         string tool_path = h2ek_path + @"\tool.exe";
 
         foreach (string bitmap in all_bitmap_refs)
@@ -316,9 +318,11 @@ class Program
             string arguments = string.Join(" ", argumentList);
             
 
-            RunTool(tool_path, arguments, h2ek_path);
+            tasks.Add(Task.Run(() => RunTool(tool_path, arguments, h2ek_path)));
             Console.WriteLine("Extracted " + bitmap);
         }
+
+        await Task.WhenAll(tasks);
     }
     
     static void TGAToTIF(string tga_output_path, string bitmaps_dir, string h3ek_path)
