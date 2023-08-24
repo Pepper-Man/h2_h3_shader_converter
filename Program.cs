@@ -8,7 +8,6 @@ using ImageMagick;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 class Shader
 {
@@ -440,33 +439,6 @@ class Program
         RunTool(tool_path, arguments, h3ek_path);
     }
 
-    static float ConvertBytesToFloat(byte byte1, byte byte2)
-    {
-        uint raw = ((uint)byte1 << 24) | ((uint)byte2 << 16);
-
-        int sign = (int)(raw >> 31) & 1;
-        int exponent = (int)((raw >> 23) & 0xFF);
-        float mantissa = 1 + ((raw & 0x7FFFFF) / (float)(1 << 23));
-
-        int exponentBias = 127;
-        exponent -= exponentBias;
-
-        if (exponent == -127)
-        {
-            if (mantissa == 1)
-            {
-                return 0f;
-            }
-            else
-            {
-                return (sign == 0) ? float.PositiveInfinity : float.NegativeInfinity;
-            }
-        }
-
-        float result = (float)((1 - (sign << 1)) * mantissa * Math.Pow(2, exponent));
-        return result;
-    }
-
     static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir)
     {
         string bitmap_tags_dir = bitmaps_dir.Replace("data", "tags").Split(new[] { "\\tags\\" }, StringSplitOptions.None).LastOrDefault();
@@ -592,16 +564,28 @@ class Program
                     aniso.Data = 6;
 
                     // Scale function data
-
                     byte byte1_x = param.scalex_2;
                     byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
                     byte byte1_y = param.scaley_2;
                     byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                    
+                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    {
+                        // Add function
+                        ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
 
-                    float bitm_scaleX = ConvertBytesToFloat(byte1_x, byte2_x);
-                    float bitm_scaleY = ConvertBytesToFloat(byte1_y, byte2_y);
-                    Console.WriteLine(bitm_scaleX);
-                    Console.WriteLine(bitm_scaleY);
+                        var func_name = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                        func_name.Value = 2; // 2 is scale uniform
+
+                        var func_data = (TagFieldData)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Struct:function[0]/Data:data");
+                        byte[] data_array = new byte[32];
+                        data_array[0] = 1; // Seems to set the "basic" type
+                        data_array[6] = byte2_x; //byte2, unsigned
+                        data_array[7] = byte1_x; // byte1
+                        func_data.SetData(data_array);
+                    }
+
+                    tagFile.Save();
 
                     param_index++;
                 }
@@ -609,6 +593,4 @@ class Program
             tagFile.Save();
         }
     }
-
-    
 }
