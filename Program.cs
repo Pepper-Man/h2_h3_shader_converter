@@ -312,16 +312,16 @@ class Program
                                 }
                                 else if (type.Contains("bitmap scale y"))
                                 {
-                                    // Grab x scale
+                                    // Grab y scale
                                     XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
                                     foreach (XmlNode index in data_block)
                                     {
                                         // Indices 6 and 7 contain the scale value bytes
-                                        if (index.Value == "6")
+                                        if (index.Attributes["index"]?.Value == "6")
                                         {
                                             byte1_scaleY = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
                                         }
-                                        else if (index.Value == "7")
+                                        else if (index.Attributes["index"]?.Value == "7")
                                         {
                                             byte2_scaleY = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
                                             break;
@@ -591,23 +591,17 @@ class Program
                     var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
 
-                    // Function data?
+                    // Scale function data
 
-                    byte byte1 = 65;
-                    byte byte2 = 200;
+                    byte byte1_x = param.scalex_2;
+                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                    byte byte1_y = param.scaley_2;
+                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
 
-                    float output = ConvertBytesToFloat(byte1, byte2);
-
-
-
-
-
-
-
-
-
-
-
+                    float bitm_scaleX = ConvertBytesToFloat(byte1_x, byte2_x);
+                    float bitm_scaleY = ConvertBytesToFloat(byte1_y, byte2_y);
+                    Console.WriteLine(bitm_scaleX);
+                    Console.WriteLine(bitm_scaleY);
 
                     param_index++;
                 }
