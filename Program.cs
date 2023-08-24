@@ -571,7 +571,7 @@ class Program
                     
                     if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
                     {
-                        // Add function
+                        // Add element for uniform scale
                         ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
 
                         var func_name = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
@@ -583,6 +583,34 @@ class Program
                         data_array[6] = byte2_x; //byte2, unsigned
                         data_array[7] = byte1_x; // byte1
                         func_data.SetData(data_array);
+                    }
+                    else // Scale is non-uniform, handle separately
+                    {
+                        // Add element for x
+                        ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+
+                        var func_name_x = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                        func_name_x.Value = 3; // 3 is scale x
+
+                        var func_data_x = (TagFieldData)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Struct:function[0]/Data:data");
+                        byte[] data_array_x = new byte[32];
+                        data_array_x[0] = 1; // Seems to set the "basic" type
+                        data_array_x[6] = byte2_x; //byte2, unsigned
+                        data_array_x[7] = byte1_x; // byte1
+                        func_data_x.SetData(data_array_x);
+
+                        // Add element for y
+                        ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+
+                        var func_name_y = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[1]/LongEnum:type");
+                        func_name_y.Value = 4; // 4 is scale y
+
+                        var func_data_y = (TagFieldData)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[1]/Struct:function[0]/Data:data");
+                        byte[] data_array_y = new byte[32];
+                        data_array_y[0] = 1; // Seems to set the "basic" type
+                        data_array_y[6] = byte2_y; //byte2, unsigned
+                        data_array_y[7] = byte1_y; // byte1
+                        func_data_y.SetData(data_array_y);
                     }
 
                     tagFile.Save();
