@@ -8,6 +8,7 @@ using ImageMagick;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 class Shader
 {
@@ -22,8 +23,11 @@ class Parameter
     public string bitmap { get; set; }
     public string value { get; set; }
     public string colour { get; set; }
-    public string scalex { get; set; }
-    public string scaley { get; set; }
+    public sbyte scalex_1 { get; set; }
+    public byte scalex_2 { get; set; }
+    public sbyte scaley_1 { get; set; }
+    public byte scaley_2 { get; set; }
+    public byte[] scaley { get; set; }
 }
 
 class Program
@@ -276,6 +280,58 @@ class Program
                         string prm_bitmap = element.SelectSingleNode("./tag_reference[@name='bitmap']").InnerText.Trim();
                         string prm_value = element.SelectSingleNode("./field[@name='const value']").InnerText.Trim();
                         string prm_colour = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                        XmlNode anim_data_block = element.SelectSingleNode("./block[@name='animation properties']");
+                        sbyte byte1_scaleX = new sbyte();
+                        byte byte2_scaleX = new byte();
+                        sbyte byte1_scaleY = new sbyte();
+                        byte byte2_scaleY = new byte();
+
+                        if (anim_data_block != null)
+                        {
+                            // Animation data exists
+                            foreach (XmlNode anim_data in anim_data_block)
+                            {
+                                string type = anim_data.SelectSingleNode("./field[@name='type']").InnerText.Trim();
+                                if (type.Contains("bitmap scale x"))
+                                {
+                                    // Grab x scale
+                                    XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
+                                    foreach (XmlNode index in data_block)
+                                    {
+                                        // Indices 6 and 7 contain the scale value bytes
+                                        if (index.Attributes["index"]?.Value == "6")
+                                        {
+                                            byte1_scaleX = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                        }
+                                        else if (index.Attributes["index"]?.Value == "7")
+                                        {
+                                            byte2_scaleX = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                            break;
+                                        }
+                                    }
+                                }
+                                else if (type.Contains("bitmap scale y"))
+                                {
+                                    // Grab x scale
+                                    XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
+                                    foreach (XmlNode index in data_block)
+                                    {
+                                        // Indices 6 and 7 contain the scale value bytes
+                                        if (index.Value == "6")
+                                        {
+                                            byte1_scaleY = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                        }
+                                        else if (index.Value == "7")
+                                        {
+                                            byte2_scaleY = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        
 
                         shader_parameters.Add(new Parameter
                         {
@@ -283,7 +339,11 @@ class Program
                             type = prm_type,
                             bitmap = prm_bitmap,
                             value = prm_value,
-                            colour = prm_colour
+                            colour = prm_colour,
+                            scalex_1 = byte1_scaleX,
+                            scalex_2 = byte2_scaleX,
+                            scaley_1 = byte1_scaleY,
+                            scaley_2 = byte2_scaleY
                         });
 
                         i++;
@@ -380,6 +440,33 @@ class Program
         RunTool(tool_path, arguments, h3ek_path);
     }
 
+    static float ConvertBytesToFloat(byte byte1, byte byte2)
+    {
+        uint raw = ((uint)byte1 << 24) | ((uint)byte2 << 16);
+
+        int sign = (int)(raw >> 31) & 1;
+        int exponent = (int)((raw >> 23) & 0xFF);
+        float mantissa = 1 + ((raw & 0x7FFFFF) / (float)(1 << 23));
+
+        int exponentBias = 127;
+        exponent -= exponentBias;
+
+        if (exponent == -127)
+        {
+            if (mantissa == 1)
+            {
+                return 0f;
+            }
+            else
+            {
+                return (sign == 0) ? float.PositiveInfinity : float.NegativeInfinity;
+            }
+        }
+
+        float result = (float)((1 - (sign << 1)) * mantissa * Math.Pow(2, exponent));
+        return result;
+    }
+
     static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir)
     {
         string bitmap_tags_dir = bitmaps_dir.Replace("data", "tags").Split(new[] { "\\tags\\" }, StringSplitOptions.None).LastOrDefault();
@@ -391,7 +478,7 @@ class Program
             var tag_path = TagPath.FromPathAndType(shader_name, "rmsh*");
 
             // Create the tag
-            TagFile tagFile = new TagFile();
+            Bungie.Tags.TagFile tagFile = new Bungie.Tags.TagFile();
             tagFile.New(tag_path);
             
             // Set bump on
@@ -457,7 +544,7 @@ class Program
                     // Set two detail
                     // Set bump on
                     var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
-                    albedo_option.Data = 7; // 7 for two detail
+                    albedo_option.Data = 1; // 7 for detail blend
 
                     string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
                     string sec_detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
@@ -504,10 +591,30 @@ class Program
                     var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
 
+                    // Function data?
+
+                    byte byte1 = 65;
+                    byte byte2 = 200;
+
+                    float output = ConvertBytesToFloat(byte1, byte2);
+
+
+
+
+
+
+
+
+
+
+
+
                     param_index++;
                 }
             }
             tagFile.Save();
         }
     }
+
+    
 }
