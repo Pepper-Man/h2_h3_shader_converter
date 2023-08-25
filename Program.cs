@@ -41,7 +41,7 @@ class BitmapData
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         List<string> bsp_paths = new List<string>();
 
@@ -64,15 +64,14 @@ class Program
         }
         */
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\ascension_bsp0.xml");
-        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\ascension\ascension.scenario";
+        bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
+        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
         string h3ek_path = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK";
         List<string> all_h2_shader_paths = new List<string>();
 
-        ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         foreach (string bsp in bsp_paths)
         {
             List<string> bsp_shader_paths = GetShaders(bsp);
@@ -129,6 +128,15 @@ class Program
         {
             Directory.CreateDirectory(tga_output_path.Replace("textures_output", "bitmap_xml"));
         }
+        else
+        {
+            // Delete existing XML files
+            string[] xmlFiles = Directory.GetFiles(tga_output_path.Replace("textures_output", "bitmap_xml"), "*.xml");
+            foreach (string xmlFile in xmlFiles)
+            {
+                File.Delete(xmlFile);
+            }
+        }
 
         Console.WriteLine("\nBeginning .shader to .xml conversion...\nPlease wait...");
         ShaderExtractor(all_h2_shader_paths, h2ek_path, xml_output_path);
@@ -153,11 +161,18 @@ class Program
 
         Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
         Task task = ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
+        await WaitForTaskCompletion(task);
         Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
-        TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
+        ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
+        string[] errors = TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
         MakeShaderTags(all_shader_data, bitmaps_dir);
         Console.WriteLine("\nSuccessfully created all shader tags.");
+        Console.WriteLine("The following errors were caught:\n");
+        foreach (string bitmap_issue in errors)
+        {
+            Console.WriteLine(bitmap_issue);
+        }
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -247,7 +262,19 @@ class Program
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
         }
-        process.WaitForExit();
+
+        // Wait for the process to exit or the timeout to elapse
+        Task processTask = Task.Run(() =>
+        {
+            if (!process.WaitForExit(5 * 1000)) // Wait with timeout
+            {
+                // The process did not exit within the timeout, so handle this case
+                // For example, you could log an error or perform cleanup
+            }
+        });
+
+        processTask.Wait(); // Wait for the process task to complete
+
         process.Close();
     }
 
@@ -395,7 +422,16 @@ class Program
 
             string arguments = string.Join(" ", argumentListTGA);
             tasks.Add(Task.Run(() => RunTool(tool_path, arguments, h2ek_path)));
+            
+            Console.WriteLine("Extracted " + bitmap);
+        }
 
+        await Task.WhenAll(tasks);
+
+        tasks.Clear();
+
+        foreach (string bitmap in all_bitmap_refs)
+        {
             // Extracting bitmap to XML
             List<string> argumentListXML = new List<string>
             {
@@ -404,17 +440,24 @@ class Program
                 "\"" + tga_output_path.Replace("textures_output", "bitmap_xml") + "\\" + bitmap.Split('\\').Last() + ".xml" + "\""
             };
 
-            arguments = string.Join(" ", argumentListXML);
+            string arguments = string.Join(" ", argumentListXML);
             tasks.Add(Task.Run(() => RunTool(tool_path, arguments, h2ek_path)));
-            
-            Console.WriteLine("Extracted " + bitmap);
         }
 
         await Task.WhenAll(tasks);
     }
-    
-    static void TGAToTIF(string tga_output_path, string bitmaps_dir, string h3ek_path)
+
+    static async Task WaitForTaskCompletion(Task task)
     {
+        while (task.Status != TaskStatus.RanToCompletion && task.Status != TaskStatus.Faulted && task.Status != TaskStatus.Canceled)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+    }
+
+    static string[] TGAToTIF(string tga_output_path, string bitmaps_dir, string h3ek_path)
+    {
+        List<string> error_files = new List<string>();
         string[] tga_files = Directory.GetFiles(tga_output_path, "*.tga");
         foreach (string tga_file in tga_files)
         {
@@ -495,64 +538,73 @@ class Program
             string bitmap_file_path = (bitmaps_dir.Replace("data", "tags")).Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last() + "\\" + bitmap_data.bitmap;
             TagPath tag_path = TagPath.FromPathAndType(bitmap_file_path, "bitm*");
 
-            using (TagFile tagFile = new TagFile(tag_path))
+            try
             {
-                // Usage
-                var type = (TagFieldEnum)tagFile.SelectField("LongEnum:Usage");
-                if (bitmap_data.type.Contains("default"))
+                using (TagFile tagFile = new TagFile(tag_path))
                 {
-                    type.Value = 0;
-                }
-                else if (bitmap_data.type.Contains("height"))
-                {
-                    type.Value = 2;
-                }
-                else if (bitmap_data.type.Contains("detail"))
-                {
-                    type.Value = 4;
-                }
+                    // Usage
+                    var type = (TagFieldEnum)tagFile.SelectField("LongEnum:Usage");
+                    if (bitmap_data.type.Contains("default"))
+                    {
+                        type.Value = 0;
+                    }
+                    else if (bitmap_data.type.Contains("height"))
+                    {
+                        type.Value = 2;
+                    }
+                    else if (bitmap_data.type.Contains("detail"))
+                    {
+                        type.Value = 4;
+                    }
 
-                // Compression
-                var compr = (TagFieldEnum)tagFile.SelectField("ShortEnum:force bitmap format");
-                if (bitmap_data.type.Contains("height"))
-                {
-                    compr.Value = 3; // Best compressed bump
-                }
-                else if (bitmap_data.compr.Contains("color-key"))
-                {
-                    compr.Value = 13; //DXT1
-                }
-                else if (bitmap_data.compr.Contains("explicit alpha"))
-                {
-                    compr.Value = 14; //DXT3
-                }
-                else if (bitmap_data.compr.Contains("interpolated alpha"))
-                {
-                    compr.Value = 15; //DXT5
-                }
+                    // Compression
+                    var compr = (TagFieldEnum)tagFile.SelectField("ShortEnum:force bitmap format");
+                    if (bitmap_data.type.Contains("height"))
+                    {
+                        compr.Value = 3; // Best compressed bump
+                    }
+                    else if (bitmap_data.compr.Contains("color-key"))
+                    {
+                        compr.Value = 13; //DXT1
+                    }
+                    else if (bitmap_data.compr.Contains("explicit alpha"))
+                    {
+                        compr.Value = 14; //DXT3
+                    }
+                    else if (bitmap_data.compr.Contains("interpolated alpha"))
+                    {
+                        compr.Value = 15; //DXT5
+                    }
 
-                // Curve mode - always set force pretty
-                var curve = (TagFieldEnum)tagFile.SelectField("CharEnum:curve mode");
-                curve.Value = 2; // force pretty
+                    // Curve mode - always set force pretty
+                    var curve = (TagFieldEnum)tagFile.SelectField("CharEnum:curve mode");
+                    curve.Value = 2; // force pretty
 
-                // Fade factor
-                var fade = (TagFieldElementSingle)tagFile.SelectField("RealFraction:fade factor");
-                fade.Data = float.Parse(bitmap_data.fade);
+                    // Fade factor
+                    var fade = (TagFieldElementSingle)tagFile.SelectField("RealFraction:fade factor");
+                    fade.Data = float.Parse(bitmap_data.fade);
 
-                // Bump height
-                if (bitmap_data.type.Contains("height"))
-                {
-                    var height = (TagFieldElementSingle)tagFile.SelectField("Real:bump map height");
-                    height.Data = float.Parse(bitmap_data.bmp_hgt);
+                    // Bump height
+                    if (bitmap_data.type.Contains("height"))
+                    {
+                        var height = (TagFieldElementSingle)tagFile.SelectField("Real:bump map height");
+                        height.Data = float.Parse(bitmap_data.bmp_hgt);
+                    }
+
+                    tagFile.Save();
                 }
-                    
-                tagFile.Save();
             }
+            catch (Bungie.Tags.TagLoadException e)
+            {
+                error_files.Add($"There was an issue with the bitmap {bitmap_file_path}. It may not have been exported from H2 correctly.");
+            }
+            
         }
 
         // Run import again to update bitmaps
         Console.WriteLine("Reimport bitmaps...");
         RunTool(tool_path, arguments, h3ek_path);
+        return error_files.ToArray();
     }
 
     static void AddShaderScaleFunc(TagFile tagFile, int type, int index, byte byte1, byte byte2, int anim_index)
