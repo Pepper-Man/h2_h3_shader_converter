@@ -550,7 +550,9 @@ class Program
             }
         }
 
-        
+        // Run import again to update bitmaps
+        Console.WriteLine("Reimport bitmaps...");
+        RunTool(tool_path, arguments, h3ek_path);
     }
 
     static void AddShaderScaleFunc(TagFile tagFile, int type, int index, byte byte1, byte byte2, int anim_index)
