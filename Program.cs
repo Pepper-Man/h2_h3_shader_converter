@@ -114,6 +114,12 @@ class Program
             }
         }
 
+        // Create bitmap xml folder
+        if (!Directory.Exists(tga_output_path.Replace("textures_output", "bitmap_xml")))
+        {
+            Directory.CreateDirectory(tga_output_path.Replace("textures_output", "bitmap_xml"));
+        }
+
         Console.WriteLine("\nBeginning .shader to .xml conversion...\nPlease wait...");
         ShaderExtractor(all_h2_shader_paths, h2ek_path, xml_output_path);
         Console.WriteLine("\nAll shaders converted to XML!\n\nGrabbing all referenced bitmap paths:\n");
@@ -369,17 +375,28 @@ class Program
 
         foreach (string bitmap in all_bitmap_refs)
         {
-            List<string> argumentList = new List<string>
+            // Extracting bitmap to TGA
+            List<string> argumentListTGA = new List<string>
             {
                 "export-bitmap-tga",
                 "\"" + bitmap + "\"",
                 "\"" + tga_output_path + "\\\\" + "\""
             };
 
-            string arguments = string.Join(" ", argumentList);
-            
-
+            string arguments = string.Join(" ", argumentListTGA);
             tasks.Add(Task.Run(() => RunTool(tool_path, arguments, h2ek_path)));
+
+            // Extracting bitmap to XML
+            List<string> argumentListXML = new List<string>
+            {
+                "export-tag-to-xml",
+                "\"" + h2ek_path + "\\tags\\" + bitmap + ".bitmap" + "\"",
+                "\"" + tga_output_path.Replace("textures_output", "bitmap_xml") + "\\" + bitmap.Split('\\').Last() + ".xml" + "\""
+            };
+
+            arguments = string.Join(" ", argumentListXML);
+            tasks.Add(Task.Run(() => RunTool(tool_path, arguments, h2ek_path)));
+            
             Console.WriteLine("Extracted " + bitmap);
         }
 
@@ -499,6 +516,36 @@ class Program
                     var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
 
+                    // Scale function data
+                    byte byte1_x = param.scalex_2;
+                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                    byte byte1_y = param.scaley_2;
+                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                    byte[] scales = new byte[] {byte1_x, byte2_x, byte1_y, byte2_y };
+                    bool all_zero = true;
+
+                    foreach (byte scale in scales)
+                    {
+                        if (scale != 0)
+                        {
+                            all_zero = false;
+                            break;
+                        }
+                    }
+
+                    if (!all_zero) // No need to bother if scale values arent provided
+                    {
+                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                        {
+                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        }
+                        else // Scale is non-uniform, handle separately
+                        {
+                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        }
+                    }
+                    
                     param_index++;
                 }
 
@@ -523,6 +570,22 @@ class Program
                     flags.Data = 1;
                     var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
+
+                    // Scale function data
+                    byte byte1_x = param.scalex_2;
+                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                    byte byte1_y = param.scaley_2;
+                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+
+                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    {
+                        AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                    }
+                    else // Scale is non-uniform, handle separately
+                    {
+                        AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                        AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                    }
 
                     param_index++;
                 }
@@ -553,6 +616,22 @@ class Program
                     flags.Data = 1;
                     var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
                     aniso.Data = 6;
+
+                    // Scale function data
+                    byte byte1_x = param.scalex_2;
+                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                    byte byte1_y = param.scaley_2;
+                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+
+                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    {
+                        AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                    }
+                    else // Scale is non-uniform, handle separately
+                    {
+                        AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                        AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                    }
 
                     param_index++;
                 }
