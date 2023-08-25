@@ -8,6 +8,7 @@ using ImageMagick;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text;
 
 class Shader
 {
@@ -27,6 +28,15 @@ class Parameter
     public sbyte scaley_1 { get; set; }
     public byte scaley_2 { get; set; }
     public byte[] scaley { get; set; }
+}
+
+class BitmapData
+{
+    public string bitmap { get; set; }
+    public string type { get; set; }
+    public string compr { get; set; }
+    public string fade { get; set; }
+    public string bmp_hgt { get; set; }
 }
 
 class Program
@@ -147,7 +157,7 @@ class Program
         TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
         MakeShaderTags(all_shader_data, bitmaps_dir);
-        Console.WriteLine("\nSuccessfully created all shader tags");
+        Console.WriteLine("\nSuccessfully created all shader tags.");
     }
 
     static List<string> GetShaders(string bsp_path)
@@ -447,13 +457,100 @@ class Program
         Console.WriteLine("Importing bitmaps...");
         string tool_path = h3ek_path + @"\tool.exe";
         List<string> argumentList = new List<string>
-            {
-                "bitmaps",
-                bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()
-            };
+        {
+            "bitmaps",
+            bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()
+        };
 
         string arguments = string.Join(" ", argumentList);
         RunTool(tool_path, arguments, h3ek_path);
+
+        Console.WriteLine("Setting bitmap options...");
+        List<BitmapData> all_bitmap_data = new List<BitmapData>();
+        string[] xml_files = Directory.GetFiles(tga_output_path.Replace("textures_output", "bitmap_xml"), "*.xml");
+
+        foreach (string xml_file in xml_files)
+        {
+            XmlDocument bitmap_file = new XmlDocument();
+            bitmap_file.Load(xml_file);
+            XmlNode root = bitmap_file.DocumentElement;
+            string bitmap_name = (new DirectoryInfo(xml_file).Name).Replace(".xml", "");
+            string usage = root.SelectSingleNode("./field[@name='usage']").InnerText.Trim();
+            string compression = root.SelectSingleNode("./field[@name='format']").InnerText.Trim();
+            string fade_factor = root.SelectSingleNode("./field[@name='detail fade factor']").InnerText.Trim();
+            string bump_height = root.SelectSingleNode("./field[@name='bump height']").InnerText.Trim();
+
+            all_bitmap_data.Add(new BitmapData
+            {
+                bitmap = bitmap_name,
+                type = usage,
+                compr = compression,
+                fade = fade_factor,
+                bmp_hgt = bump_height
+            });
+        }
+
+        foreach (BitmapData bitmap_data in all_bitmap_data)
+        {
+            string bitmap_file_path = (bitmaps_dir.Replace("data", "tags")).Split(new[] { "\\tags\\" }, StringSplitOptions.None).Last() + "\\" + bitmap_data.bitmap;
+            TagPath tag_path = TagPath.FromPathAndType(bitmap_file_path, "bitm*");
+
+            using (TagFile tagFile = new TagFile(tag_path))
+            {
+                // Usage
+                var type = (TagFieldEnum)tagFile.SelectField("LongEnum:Usage");
+                if (bitmap_data.type.Contains("default"))
+                {
+                    type.Value = 0;
+                }
+                else if (bitmap_data.type.Contains("height"))
+                {
+                    type.Value = 2;
+                }
+                else if (bitmap_data.type.Contains("detail"))
+                {
+                    type.Value = 4;
+                }
+
+                // Compression
+                var compr = (TagFieldEnum)tagFile.SelectField("ShortEnum:force bitmap format");
+                if (bitmap_data.type.Contains("height"))
+                {
+                    compr.Value = 3; // Best compressed bump
+                }
+                else if (bitmap_data.compr.Contains("color-key"))
+                {
+                    compr.Value = 13; //DXT1
+                }
+                else if (bitmap_data.compr.Contains("explicit alpha"))
+                {
+                    compr.Value = 14; //DXT3
+                }
+                else if (bitmap_data.compr.Contains("interpolated alpha"))
+                {
+                    compr.Value = 15; //DXT5
+                }
+
+                // Curve mode - always set force pretty
+                var curve = (TagFieldEnum)tagFile.SelectField("CharEnum:curve mode");
+                curve.Value = 2; // force pretty
+
+                // Fade factor
+                var fade = (TagFieldElementSingle)tagFile.SelectField("RealFraction:fade factor");
+                fade.Data = float.Parse(bitmap_data.fade);
+
+                // Bump height
+                if (bitmap_data.type.Contains("height"))
+                {
+                    var height = (TagFieldElementSingle)tagFile.SelectField("Real:bump map height");
+                    height.Data = float.Parse(bitmap_data.bmp_hgt);
+                }
+                    
+                tagFile.Save();
+            }
+        }
+
+        
     }
 
     static void AddShaderScaleFunc(TagFile tagFile, int type, int index, byte byte1, byte byte2, int anim_index)
