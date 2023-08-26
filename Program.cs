@@ -8,7 +8,7 @@ using ImageMagick;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Text;
+using System.Xml.Linq;
 
 class Shader
 {
@@ -28,6 +28,8 @@ class Parameter
     public sbyte scaley_1 { get; set; }
     public byte scaley_2 { get; set; }
     public byte[] scaley { get; set; }
+    public string template { get; set; }
+    public string glob_mat { get; set; }
 }
 
 class BitmapData
@@ -307,6 +309,7 @@ class Program
             string shader_name = (new DirectoryInfo(xml_file).Name).Replace(".xml", "");
 
             XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
+            string prm_templ = root.SelectSingleNode("./tag_reference[@name='template']").InnerText.Trim();
 
             foreach (XmlNode param in params_block)
             {
@@ -385,7 +388,8 @@ class Program
                             scalex_1 = byte1_scaleX,
                             scalex_2 = byte2_scaleX,
                             scaley_1 = byte1_scaleY,
-                            scaley_2 = byte2_scaleY
+                            scaley_2 = byte2_scaleY,
+                            template = prm_templ
                         });
 
                         i++;
@@ -491,7 +495,7 @@ class Program
             {
                 File.Move(tifFile, bitmaps_dir + "\\" + file_name);
             }
-            catch (IOException ex)
+            catch (IOException)
             {
                 // File already exists, dont worry about it
             }
@@ -594,9 +598,9 @@ class Program
                     tagFile.Save();
                 }
             }
-            catch (Bungie.Tags.TagLoadException e)
+            catch (Bungie.Tags.TagLoadException)
             {
-                error_files.Add($"There was an issue with the bitmap {bitmap_file_path}. It may not have been exported from H2 correctly.");
+                error_files.Add($"There was an issue loading the bitmap {bitmap_file_path}. It may not have been exported from H2 correctly.");
             }
             
         }
@@ -636,7 +640,7 @@ class Program
             // Create the tag
             TagFile tagFile = new TagFile();
             tagFile.New(tag_path);
-            
+             
             // Set bump on
             var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
             bump_option.Data = 1; // 1 for standard bump
@@ -727,15 +731,29 @@ class Program
                     byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
                     byte byte1_y = param.scaley_2;
                     byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                    bool all_zero = true;
 
-                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    foreach (byte scale in scales)
                     {
-                        AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        if (scale != 0)
+                        {
+                            all_zero = false;
+                            break;
+                        }
                     }
-                    else // Scale is non-uniform, handle separately
+
+                    if (!all_zero) // No need to bother if scale values arent provided
                     {
-                        AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                        AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                        {
+                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        }
+                        else // Scale is non-uniform, handle separately
+                        {
+                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        }
                     }
 
                     param_index++;
@@ -773,15 +791,29 @@ class Program
                     byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
                     byte byte1_y = param.scaley_2;
                     byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                    bool all_zero = true;
 
-                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    foreach (byte scale in scales)
                     {
-                        AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        if (scale != 0)
+                        {
+                            all_zero = false;
+                            break;
+                        }
                     }
-                    else // Scale is non-uniform, handle separately
+
+                    if (!all_zero) // No need to bother if scale values arent provided
                     {
-                        AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                        AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                        {
+                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        }
+                        else // Scale is non-uniform, handle separately
+                        {
+                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        }
                     }
 
                     param_index++;
@@ -814,20 +846,42 @@ class Program
                     byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
                     byte byte1_y = param.scaley_2;
                     byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
-                    
-                    if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                    bool all_zero = true;
+
+                    foreach (byte scale in scales)
                     {
-                        AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        if (scale != 0)
+                        {
+                            all_zero = false;
+                            break;
+                        }
                     }
-                    else // Scale is non-uniform, handle separately
+
+                    if (!all_zero) // No need to bother if scale values arent provided
                     {
-                        AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                        AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                        {
+                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                        }
+                        else // Scale is non-uniform, handle separately
+                        {
+                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                        }
                     }
+
 
                     tagFile.Save();
 
                     param_index++;
+                }
+            
+                if (param.template.Contains("opaque\\overlay"))
+                {
+                    // Set blend mode to double multiply
+                    var blend_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[7]/ShortInteger:short");
+                    blend_option.Data = 4;
                 }
             }
             tagFile.Save();
