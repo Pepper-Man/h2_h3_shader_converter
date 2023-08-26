@@ -13,6 +13,8 @@ using System.Xml.Linq;
 class Shader
 {
     public string name { get; set; }
+    public string glob_mat { get; set; }
+    public string template { get; set; }
     public List<Parameter> parameters { get; set; }
 }
 
@@ -28,8 +30,6 @@ class Parameter
     public sbyte scaley_1 { get; set; }
     public byte scaley_2 { get; set; }
     public byte[] scaley { get; set; }
-    public string template { get; set; }
-    public string glob_mat { get; set; }
 }
 
 class BitmapData
@@ -309,7 +309,8 @@ class Program
             string shader_name = (new DirectoryInfo(xml_file).Name).Replace(".xml", "");
 
             XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
-            string prm_templ = root.SelectSingleNode("./tag_reference[@name='template']").InnerText.Trim();
+            string shd_templ = root.SelectSingleNode("./tag_reference[@name='template']").InnerText.Trim();
+            string shd_globmat = root.SelectSingleNode("./field[@name='material name']").InnerText.Trim();
 
             foreach (XmlNode param in params_block)
             {
@@ -389,7 +390,6 @@ class Program
                             scalex_2 = byte2_scaleX,
                             scaley_1 = byte1_scaleY,
                             scaley_2 = byte2_scaleY,
-                            template = prm_templ
                         });
 
                         i++;
@@ -403,6 +403,8 @@ class Program
             all_shader_data.Add(new Shader
             {
                 name = shader_name,
+                glob_mat = shd_globmat,
+                template = shd_templ,
                 parameters = shader_parameters
             }); ;
         }
@@ -645,6 +647,18 @@ class Program
             var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
             bump_option.Data = 1; // 1 for standard bump
 
+            // Blend mode?
+            if (shader.template.Contains("opaque\\overlay"))
+            {
+                // Set blend mode to double multiply
+                var blend_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[7]/ShortInteger:short");
+                blend_option.Data = 4;
+            }
+
+            // Global material
+            var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
+            global_mat.Data = shader.glob_mat;
+
             int param_index = 0;
 
             foreach (Parameter param in shader.parameters)
@@ -875,13 +889,6 @@ class Program
                     tagFile.Save();
 
                     param_index++;
-                }
-            
-                if (param.template.Contains("opaque\\overlay"))
-                {
-                    // Set blend mode to double multiply
-                    var blend_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[7]/ShortInteger:short");
-                    blend_option.Data = 4;
                 }
             }
             tagFile.Save();
