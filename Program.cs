@@ -972,6 +972,68 @@ class Program
 
                         param_index++;
                     }
+
+                    if (param.name == "self_illum_map")
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string illum_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Enable self-illum
+                        var illum_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[6]/ShortInteger:short");
+                        illum_option.Data = 1;
+
+                        // Add illum map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "self_illum_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set illum map
+                        var illum_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        illum_map.Path = TagPath.FromPathAndType(illum_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+
+                        //tagFile.Save();
+
+                        param_index++;
+                    }
                 }
                 tagFile.Save();
             }
