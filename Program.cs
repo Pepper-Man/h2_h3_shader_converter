@@ -708,8 +708,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -763,8 +771,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -840,8 +856,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -925,8 +949,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -980,8 +1012,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1035,8 +1075,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1069,6 +1117,8 @@ class Program
                 // Global material
                 var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
                 global_mat.Data = shader.glob_mat;
+
+                // Cook torrance
 
                 int param_index = 0;
 
@@ -1121,8 +1171,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1176,8 +1234,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1235,8 +1301,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1290,8 +1364,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1374,8 +1456,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
@@ -1441,8 +1531,16 @@ class Program
                             }
                             else // Scale is non-uniform, handle separately
                             {
-                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
                             }
                         }
 
