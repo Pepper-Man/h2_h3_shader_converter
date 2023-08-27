@@ -168,7 +168,7 @@ class Program
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         string[] errors = TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
-        MakeShaderTags(all_shader_data, bitmaps_dir);
+        MakeShaderTags(all_shader_data, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nSuccessfully created all shader tags.");
         Console.WriteLine("The following errors were caught:\n");
         foreach (string bitmap_issue in errors)
@@ -629,269 +629,485 @@ class Program
         func_data.SetData(data_array);
     }
 
-    static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir)
+    static void MakeShaderTags(List<Shader> all_shader_data, string bitmaps_dir, string h3ek_path)
     {
         string bitmap_tags_dir = bitmaps_dir.Replace("data", "tags").Split(new[] { "\\tags\\" }, StringSplitOptions.None).LastOrDefault();
         string shaders_dir = (bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()).Replace("bitmaps", "shaders");
 
         foreach (Shader shader in all_shader_data)
         {
-            string shader_name = Path.Combine(shaders_dir, shader.name);
-            var tag_path = TagPath.FromPathAndType(shader_name, "rmsh*");
-
-            // Create the tag
-            TagFile tagFile = new TagFile();
-            tagFile.New(tag_path);
-             
-            // Set bump on
-            var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
-            bump_option.Data = 1; // 1 for standard bump
-
-            // Blend mode?
-            if (shader.template.Contains("opaque\\overlay"))
+            if(!shader.glob_mat.Contains("soft_organic_plant"))
             {
-                // Set blend mode to double multiply
-                var blend_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[7]/ShortInteger:short");
-                blend_option.Data = 4;
+                string shader_name = Path.Combine(shaders_dir, shader.name);
+                var tag_path = TagPath.FromPathAndType(shader_name, "rmsh*");
+
+                // Create the tag
+                TagFile tagFile = new TagFile();
+                tagFile.New(tag_path);
+
+                // Set bump on
+                var bump_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
+                bump_option.Data = 1; // 1 for standard bump
+
+                // Blend mode?
+                if (shader.template.Contains("opaque\\overlay"))
+                {
+                    // Set blend mode to double multiply
+                    var blend_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[7]/ShortInteger:short");
+                    blend_option.Data = 4;
+                }
+
+                // Global material
+                var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
+                global_mat.Data = shader.glob_mat;
+
+                int param_index = 0;
+
+                foreach (Parameter param in shader.parameters)
+                {
+                    if (param.name == "base_map")
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string base_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add base map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "base_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set base map
+                        var base_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        base_map.Path = TagPath.FromPathAndType(base_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+                        param_index++;
+                    }
+
+                    if (param.name == "detail_map")
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add detail map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "detail_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set detail map
+                        var detail_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        detail_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+                        param_index++;
+                    }
+
+                    if (param.name == "secondary_detail_map")
+                    {
+                        // Set two detail
+                        // Set bump on
+                        var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
+                        albedo_option.Data = 1; // 7 for detail blend
+
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string sec_detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add detail map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "detail_map2";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set detail map
+                        var detail2_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        detail2_map.Path = TagPath.FromPathAndType(sec_detail_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+                        param_index++;
+                    }
+
+                    if (param.name == "bump_map")
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string bump_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add bump map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "bump_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set base map
+                        var bump_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        bump_map.Path = TagPath.FromPathAndType(bump_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+
+                        tagFile.Save();
+
+                        param_index++;
+                    }
+                }
+                tagFile.Save();
             }
-
-            // Global material
-            var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
-            global_mat.Data = shader.glob_mat;
-
-            int param_index = 0;
-
-            foreach (Parameter param in shader.parameters)
+            else // Needs to be .shader_foliage
             {
-                if (param.name == "base_map")
+                string shader_name = Path.Combine(shaders_dir, shader.name);
+                var tag_path = TagPath.FromPathAndType(shader_name, "rmfl*");
+
+                // Create the tag
+                TagFile tagFile = new TagFile();
+                tagFile.New(tag_path);
+
+                // Set alpha test to simple
+                var alpha_test = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[1]/ShortInteger:short");
+                alpha_test.Data = 1;
+
+                // Global material
+                var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
+                global_mat.Data = shader.glob_mat;
+
+                int param_index = 0;
+
+                foreach (Parameter param in shader.parameters)
                 {
-                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
-                    string base_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
-
-                    // Add base map parameter
-                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                    param_name.Data = "base_map";
-                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                    param_type.Value = 0;
-
-                    // Set base map
-                    var base_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
-                    base_map.Path = TagPath.FromPathAndType(base_map_path, "bitm*");
-
-                    // Set aniso
-                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
-                    flags.Data = 1;
-                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
-                    aniso.Data = 6;
-
-                    // Scale function data
-                    byte byte1_x = param.scalex_2;
-                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
-                    byte byte1_y = param.scaley_2;
-                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
-                    byte[] scales = new byte[] {byte1_x, byte2_x, byte1_y, byte2_y };
-                    bool all_zero = true;
-
-                    foreach (byte scale in scales)
+                    if (param.name == "base_map")
                     {
-                        if (scale != 0)
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string base_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add base map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "base_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set base map
+                        var base_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        base_map.Path = TagPath.FromPathAndType(base_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
                         {
-                            all_zero = false;
-                            break;
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
                         }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+                        param_index++;
                     }
 
-                    if (!all_zero) // No need to bother if scale values arent provided
+                    if (param.name == "detail_map")
                     {
-                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add detail map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "detail_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set detail map
+                        var detail_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        detail_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
                         {
-                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
                         }
-                        else // Scale is non-uniform, handle separately
+
+                        if (!all_zero) // No need to bother if scale values arent provided
                         {
-                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
                         }
+
+                        param_index++;
                     }
-                    
-                    param_index++;
+
+                    if (param.name == "bump_map")
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string alpha_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Reimport bump map as colour map to get alpha test working
+                        TagPath bitmap_path = TagPath.FromPathAndType(alpha_map_path, "bitm*");
+
+                        using (var bitmapFile = new TagFile(bitmap_path))
+                        {
+                            var compr = (TagFieldEnum)bitmapFile.SelectField("ShortEnum:force bitmap format");
+                            compr.Value = 2;
+                            bitmapFile.Save();
+                        }
+
+                        List<string> argumentList = new List<string>
+                        {
+                            "reimport-bitmaps-single",
+                            alpha_map_path
+                        };
+
+                        string arguments = string.Join(" ", argumentList);
+                        string tool_path = h3ek_path + @"\tool.exe";
+
+                        Console.WriteLine("Reimporting bump maps as colour for shader foliage...");
+                        RunTool(tool_path, arguments, h3ek_path);
+
+                        // Add alpha map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "alpha_test_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set alpha map
+                        var bump_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        bump_map.Path = TagPath.FromPathAndType(alpha_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
+                                AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
+                            }
+                        }
+
+
+                        tagFile.Save();
+
+                        param_index++;
+                    }
                 }
-
-                if (param.name == "detail_map")
-                {
-                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
-                    string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
-
-                    // Add detail map parameter
-                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                    param_name.Data = "detail_map";
-                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                    param_type.Value = 0;
-
-                    // Set detail map
-                    var detail_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
-                    detail_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
-
-                    // Set aniso
-                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
-                    flags.Data = 1;
-                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
-                    aniso.Data = 6;
-
-                    // Scale function data
-                    byte byte1_x = param.scalex_2;
-                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
-                    byte byte1_y = param.scaley_2;
-                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
-                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
-                    bool all_zero = true;
-
-                    foreach (byte scale in scales)
-                    {
-                        if (scale != 0)
-                        {
-                            all_zero = false;
-                            break;
-                        }
-                    }
-
-                    if (!all_zero) // No need to bother if scale values arent provided
-                    {
-                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
-                        {
-                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
-                        }
-                        else // Scale is non-uniform, handle separately
-                        {
-                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
-                        }
-                    }
-
-                    param_index++;
-                }
-
-                if (param.name == "secondary_detail_map")
-                {
-                    // Set two detail
-                    // Set bump on
-                    var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
-                    albedo_option.Data = 1; // 7 for detail blend
-
-                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
-                    string sec_detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
-
-                    // Add detail map parameter
-                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                    param_name.Data = "detail_map2";
-                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                    param_type.Value = 0;
-
-                    // Set detail map
-                    var detail2_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
-                    detail2_map.Path = TagPath.FromPathAndType(sec_detail_map_path, "bitm*");
-
-                    // Set aniso
-                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
-                    flags.Data = 1;
-                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
-                    aniso.Data = 6;
-
-                    // Scale function data
-                    byte byte1_x = param.scalex_2;
-                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
-                    byte byte1_y = param.scaley_2;
-                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
-                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
-                    bool all_zero = true;
-
-                    foreach (byte scale in scales)
-                    {
-                        if (scale != 0)
-                        {
-                            all_zero = false;
-                            break;
-                        }
-                    }
-
-                    if (!all_zero) // No need to bother if scale values arent provided
-                    {
-                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
-                        {
-                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
-                        }
-                        else // Scale is non-uniform, handle separately
-                        {
-                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
-                        }
-                    }
-
-                    param_index++;
-                }
-
-                if (param.name == "bump_map")
-                {
-                    string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
-                    string bump_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
-
-                    // Add bump map parameter
-                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                    param_name.Data = "bump_map";
-                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                    param_type.Value = 0;
-
-                    // Set base map
-                    var bump_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
-                    bump_map.Path = TagPath.FromPathAndType(bump_map_path, "bitm*");
-
-                    // Set aniso
-                    var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
-                    flags.Data = 1;
-                    var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
-                    aniso.Data = 6;
-
-                    // Scale function data
-                    byte byte1_x = param.scalex_2;
-                    byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
-                    byte byte1_y = param.scaley_2;
-                    byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
-                    byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
-                    bool all_zero = true;
-
-                    foreach (byte scale in scales)
-                    {
-                        if (scale != 0)
-                        {
-                            all_zero = false;
-                            break;
-                        }
-                    }
-
-                    if (!all_zero) // No need to bother if scale values arent provided
-                    {
-                        if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
-                        {
-                            AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
-                        }
-                        else // Scale is non-uniform, handle separately
-                        {
-                            AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, 0);
-                            AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, 1);
-                        }
-                    }
-
-
-                    tagFile.Save();
-
-                    param_index++;
-                }
+                tagFile.Save();
             }
-            tagFile.Save();
         }
     }
 }
