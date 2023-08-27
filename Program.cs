@@ -892,7 +892,7 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "alpha_test_map")
+                    if (param.name == "alpha_test_map" || param.name == "lightmap_alphatest_map")
                     {
                         // Enable alpha test
                         var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[2]/ShortInteger:short");
