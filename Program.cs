@@ -66,8 +66,8 @@ class Program
         }
         */
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
-        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
+        bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\alphagasgiant_bsp.xml");
+        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\04a_gasgiant\04a_gasgiant.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
@@ -170,10 +170,13 @@ class Program
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
         MakeShaderTags(all_shader_data, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nSuccessfully created all shader tags.");
-        Console.WriteLine("The following errors were caught:\n");
-        foreach (string bitmap_issue in errors)
+        if (errors.Count() != 0)
         {
-            Console.WriteLine(bitmap_issue);
+            Console.WriteLine("The following errors were caught:\n");
+            foreach (string bitmap_issue in errors)
+            {
+                Console.WriteLine(bitmap_issue);
+            }
         }
     }
 
