@@ -66,7 +66,7 @@ class Program
         }
         */
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"G:\Steam\steamapps\common\H2EK\alphagasgiant_bsp.xml");
+        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\alphagasgiant.xml");
         string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\04a_gasgiant\04a_gasgiant.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
@@ -273,8 +273,7 @@ class Program
         {
             if (!process.WaitForExit(5 * 1000)) // Wait with timeout
             {
-                // The process did not exit within the timeout, so handle this case
-                // For example, you could log an error or perform cleanup
+                // TODO: Implement failure case
             }
         });
 
@@ -1118,7 +1117,13 @@ class Program
                 var global_mat = (TagFieldElementStringID)tagFile.SelectField("StringID:material name");
                 global_mat.Data = shader.glob_mat;
 
+                // Specular mask
+                var spec_mask_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[3]/ShortInteger:short");
+                spec_mask_option.Data = 1;
+
                 // Cook torrance
+                var mat_mdl_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[4]/ShortInteger:short");
+                mat_mdl_option.Data = 1;
 
                 int param_index = 0;
 
