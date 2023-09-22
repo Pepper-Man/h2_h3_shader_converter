@@ -46,6 +46,15 @@ class BitmapData
     public string bmp_hgt { get; set; }
 }
 
+class CookSettings
+{
+    public float spec_coeff { get; set; }
+    public float roughness { get; set; }
+    public float area_contr { get; set; }
+    public float anal_contr { get; set; }
+    public float env_contr { get; set; }
+}
+
 class Program
 {
     static async Task Main(string[] args)
@@ -668,6 +677,42 @@ class Program
     {
         string bitmap_tags_dir = bitmaps_dir.Replace("data", "tags").Split(new[] { "\\tags\\" }, StringSplitOptions.None).LastOrDefault();
         string shaders_dir = (bitmaps_dir.Split(new[] { "\\data\\" }, StringSplitOptions.None).LastOrDefault()).Replace("bitmaps", "shaders");
+
+        CookSettings cook_diffuse = new CookSettings
+        {
+            spec_coeff = 0.06366198f,
+            roughness = 0.3f,
+            area_contr = 0.3f,
+            anal_contr = 0.5f,
+            env_contr = 0.0f
+        };
+
+        CookSettings cook_default = new CookSettings
+        {
+            spec_coeff = 0.2546479f,
+            roughness = 0.2f,
+            area_contr = 0.5f,
+            anal_contr = 0.6f,
+            env_contr = 1.0f
+        };
+
+        CookSettings cook_dull = new CookSettings
+        {
+            spec_coeff = 0.06366198f,
+            roughness = 0.3f,
+            area_contr = 0.1f,
+            anal_contr = 0.2f,
+            env_contr = 0.0f
+        };
+
+        CookSettings cook_shiny = new CookSettings
+        {
+            spec_coeff = 0.318309873f,
+            roughness = 0.1f,
+            area_contr = 0.2f,
+            anal_contr = 0.5f,
+            env_contr = 1.0f
+        };
 
         foreach (Shader shader in all_shader_data)
         {
