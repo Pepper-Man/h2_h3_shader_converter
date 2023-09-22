@@ -1154,19 +1154,103 @@ class Program
                 var spec_mask_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[3]/ShortInteger:short");
                 spec_mask_option.Data = 1;
 
-                // Cook torrance
-                var mat_mdl_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[4]/ShortInteger:short");
-                mat_mdl_option.Data = 1;
+                int param_index = 0;
 
+                // Cook torrance
+                if (shader.spec_col != "")
+                {
+                    var mat_mdl_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[4]/ShortInteger:short");
+                    mat_mdl_option.Data = 1;
+
+                    // Add new parameter
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+
+                    // Set parameter name
+                    var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    param_name.Data = "specular_tint";
+
+                    // Set parameter type
+                    var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    param_type.Value = 1; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+
+                    // Add animated parameter
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+
+                    // Set animated parameter type to colour
+                    var anim_param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    anim_param_type.Value = 1; // 0 is "scale uniform", 1 is "color"
+
+                    // Set function data to RGB colour
+                    TagFieldCustomFunctionEditor spec_tint_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    spec_tint_func.Value.ColorGraphType = FunctionEditorColorGraphType.OneColor;
+                    spec_tint_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    float[] spec_colour = shader.spec_col.Split(',').Select(float.Parse).ToArray();
+                    spec_tint_func.Value.SetColor(0, GameColor.FromRgb(spec_colour[0], spec_colour[1], spec_colour[2]));
+                    param_index++;
+
+                    if (shader.spec_glnc != "")
+                    {
+                        // Add new parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+
+                        // Set parameter name
+                        var spec_glc_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        spec_glc_name.Data = "fresnel_color";
+
+                        // Set parameter type
+                        var spec_glc_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        spec_glc_type.Value = 1; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+
+                        // Add animated parameter
+                        ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+
+                        // Set animated parameter type to colour
+                        var anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                        anim_type.Value = 1; // 0 is "scale uniform", 1 is "color"
+
+                        // Set function data to RGB colour
+                        TagFieldCustomFunctionEditor spec_glc_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                        spec_glc_func.Value.ColorGraphType = FunctionEditorColorGraphType.OneColor;
+                        spec_glc_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                        float[] spec_glc_colour = shader.spec_glnc.Split(',').Select(float.Parse).ToArray();
+                        spec_glc_func.Value.SetColor(0, GameColor.FromRgb(spec_glc_colour[0], spec_glc_colour[1], spec_glc_colour[2]));
+                        param_index++;
+                    }
+                }
+                
                 // Dynamic env mapping?
                 if (shader.env_tint != "")
                 {
                     var env_mapping = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[5]/ShortInteger:short");
                     env_mapping.Data = 2; // 2 is dynamic
-                }
 
-                int param_index = 0;
-                
+                    // Add new parameter
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+
+                    // Set parameter name
+                    var env_param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    env_param_name.Data = "env_tint_color";
+
+                    // Set parameter type
+                    var env_param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    env_param_type.Value = 1; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+
+                    // Add animated parameter
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+
+                    // Set animated parameter type to colour
+                    var anim_param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    anim_param_type.Value = 1; // 0 is "scale uniform", 1 is "color"
+
+                    // Set function data to RGB colour
+                    TagFieldCustomFunctionEditor env_col_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    env_col_func.Value.ColorGraphType = FunctionEditorColorGraphType.OneColor;
+                    env_col_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    float[] env_colour = shader.env_tint.Split(',').Select(float.Parse).ToArray();
+                    env_col_func.Value.SetColor(0, GameColor.FromRgb(env_colour[0], env_colour[1], env_colour[2]));
+                    param_index++;
+                }
+ 
                 foreach (Parameter param in shader.parameters)
                 {
                     if (param.name == "base_map")
