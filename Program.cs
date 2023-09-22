@@ -1158,35 +1158,15 @@ class Program
                 var mat_mdl_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[4]/ShortInteger:short");
                 mat_mdl_option.Data = 1;
 
+                // Dynamic env mapping?
+                if (shader.env_tint != "")
+                {
+                    var env_mapping = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[5]/ShortInteger:short");
+                    env_mapping.Data = 2; // 2 is dynamic
+                }
+
                 int param_index = 0;
-
-                // Cook torrance field testing
-                // Add new parameter
-                ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-
-                // Set parameter name
-                var diffuse_co_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                diffuse_co_name.Data = "specular_tint";
-
-                // Set parameter type
-                var diffuse_co_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                diffuse_co_type.Value = 1; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
-
-                // Add animated parameter
-                ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
                 
-                // Set animated parameter type to colour
-                var anim_param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
-                anim_param_type.Value = 1; // 0 is "scale uniform", 1 is "color"
-
-                // Set function data to RGB colour
-                TagFieldCustomFunctionEditor func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
-                func.Value.ColorGraphType = FunctionEditorColorGraphType.OneColor;
-                func.Value.MasterType = FunctionEditorMasterType.Basic;
-                func.Value.SetColor(0, GameColor.FromRgb(1.0f, 0.0f, 0.0f)); // Test max red
-                
-                param_index++;
-
                 foreach (Parameter param in shader.parameters)
                 {
                     if (param.name == "base_map")
