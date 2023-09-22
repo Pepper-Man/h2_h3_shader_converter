@@ -71,8 +71,8 @@ class Program
         }
         */
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\alphagasgiant.xml");
-        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\04a_gasgiant\04a_gasgiant.scenario";
+        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
+        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
@@ -1156,7 +1156,7 @@ class Program
 
                 int param_index = 0;
 
-                // Cook torrance
+                // Cook torrance data
                 if (shader.spec_col != "")
                 {
                     var mat_mdl_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[4]/ShortInteger:short");
@@ -1205,8 +1205,8 @@ class Program
                         ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
 
                         // Set animated parameter type to colour
-                        var anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
-                        anim_type.Value = 1; // 0 is "scale uniform", 1 is "color"
+                        var spec_glc_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                        spec_glc_anim_type.Value = 1; // 0 is "scale uniform", 1 is "color"
 
                         // Set function data to RGB colour
                         TagFieldCustomFunctionEditor spec_glc_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
@@ -1216,6 +1216,49 @@ class Program
                         spec_glc_func.Value.SetColor(0, GameColor.FromRgb(spec_glc_colour[0], spec_glc_colour[1], spec_glc_colour[2]));
                         param_index++;
                     }
+
+                    // Set generic cook torrance values
+                    // Specular coefficient
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var spec_coeff_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    spec_coeff_name.Data = "specular_coefficient";
+                    var spec_coeff_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    spec_coeff_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+                    var anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor spec_coeff_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    spec_coeff_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    spec_coeff_func.Value.ClampRangeMin = 0.35f;
+                    param_index++;
+
+                    // Roughness
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var roughness_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    roughness_name.Data = "roughness";
+                    var roughness_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    roughness_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+                    var roughness_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    roughness_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor rough_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    rough_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    rough_func.Value.ClampRangeMin = 0.2f;
+                    param_index++;
+
+                    // Env map specular contribution
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var emsc_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    emsc_name.Data = "environment_map_specular_contribution";
+                    var emsc_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    emsc_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+                    var emsc_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    emsc_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor emsc_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    emsc_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    emsc_func.Value.ClampRangeMin = 0.15f;
+                    param_index++;
                 }
                 
                 // Dynamic env mapping?
