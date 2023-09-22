@@ -21,6 +21,7 @@ class Shader
     public string spec_glnc { get; set; }
     public string env_tint { get; set; }
     public string env_glnc { get; set; }
+    public string spec_type { get; set; }
 }
 
 class Parameter
@@ -80,8 +81,8 @@ class Program
         }
         */
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
-        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
+        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\alphagasgiant.xml");
+        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\04a_gasgiant\04a_gasgiant.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
@@ -331,6 +332,7 @@ class Program
             XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
             string shd_templ = root.SelectSingleNode("./tag_reference[@name='template']").InnerText.Trim();
             string shd_globmat = root.SelectSingleNode("./field[@name='material name']").InnerText.Trim();
+            string specular_setting = root.SelectSingleNode("./field[@name='lightmap type']").InnerText.Trim();
 
             foreach (XmlNode param in params_block)
             {
@@ -449,7 +451,8 @@ class Program
                 spec_col = specular_col,
                 spec_glnc = specular_glc_col,
                 env_tint = env_col,
-                env_glnc = env_glc_col
+                env_glnc = env_glc_col,
+                spec_type = specular_setting
             }); ;
         }
         return all_shader_data;
@@ -1274,7 +1277,6 @@ class Program
                     anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
                     TagFieldCustomFunctionEditor spec_coeff_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
                     spec_coeff_func.Value.MasterType = FunctionEditorMasterType.Basic;
-                    spec_coeff_func.Value.ClampRangeMin = 0.35f;
                     param_index++;
 
                     // Roughness
@@ -1288,22 +1290,84 @@ class Program
                     roughness_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
                     TagFieldCustomFunctionEditor rough_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
                     rough_func.Value.MasterType = FunctionEditorMasterType.Basic;
-                    rough_func.Value.ClampRangeMin = 0.2f;
+                    param_index++;
+
+                    // Area specular contribution
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var area_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    area_name.Data = "area_specular_contribution";
+                    var area_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    area_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+                    var area_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    area_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor area_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    area_func.Value.MasterType = FunctionEditorMasterType.Basic;
+                    param_index++;
+
+                    // Analytical specular contribution
+                    ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                    var anal_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    anal_name.Data = "analytical_specular_contribution";
+                    var anal_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    anal_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
+                    var anal_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    anal_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor anal_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    anal_func.Value.MasterType = FunctionEditorMasterType.Basic;
                     param_index++;
 
                     // Env map specular contribution
                     ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
-                    var emsc_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
-                    emsc_name.Data = "environment_map_specular_contribution";
-                    var emsc_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
-                    emsc_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
+                    var env_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                    env_name.Data = "environment_map_specular_contribution";
+                    var env_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                    env_type.Value = 2; // 0 is "bitmap", 1 is "color", 2 is "real", 3 is "int"
                     ((TagFieldBlock)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters")).AddElement();
-                    var emsc_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
-                    emsc_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
-                    TagFieldCustomFunctionEditor emsc_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
-                    emsc_func.Value.MasterType = FunctionEditorMasterType.Basic;
-                    emsc_func.Value.ClampRangeMin = 0.15f;
+                    var env_anim_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/LongEnum:type");
+                    env_anim_type.Value = 0; // 0 is "value", 1 is "color", 2 is "scale uniform", 3 is "scale x", 4 is "scale y"
+                    TagFieldCustomFunctionEditor env_func = (TagFieldCustomFunctionEditor)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Block:animated parameters[0]/Custom:animation function");
+                    env_func.Value.MasterType = FunctionEditorMasterType.Basic;
                     param_index++;
+
+                    // Values need to change depending on h2 specular setting
+                    if (shader.spec_type == "0,diffuse")
+                    {
+                        spec_coeff_func.Value.ClampRangeMin = cook_diffuse.spec_coeff;
+                        rough_func.Value.ClampRangeMin = cook_diffuse.roughness;
+                        area_func.Value.ClampRangeMin = cook_diffuse.area_contr;
+                        anal_func.Value.ClampRangeMin = cook_diffuse.anal_contr;
+                        env_func.Value.ClampRangeMin = cook_diffuse.env_contr;
+                    }
+                    else if (shader.spec_type == "1,default specular")
+                    {
+                        spec_coeff_func.Value.ClampRangeMin = cook_default.spec_coeff;
+                        rough_func.Value.ClampRangeMin = cook_default.roughness;
+                        area_func.Value.ClampRangeMin = cook_default.area_contr;
+                        anal_func.Value.ClampRangeMin = cook_default.anal_contr;
+                        env_func.Value.ClampRangeMin = cook_default.env_contr;
+                    }
+                    else if (shader.spec_type == "2,dull specular")
+                    {
+                        spec_coeff_func.Value.ClampRangeMin = cook_dull.spec_coeff;
+                        rough_func.Value.ClampRangeMin = cook_dull.roughness;
+                        area_func.Value.ClampRangeMin = cook_dull.area_contr;
+                        anal_func.Value.ClampRangeMin = cook_dull.anal_contr;
+                        env_func.Value.ClampRangeMin = cook_dull.env_contr;
+                    }
+                    else if (shader.spec_type == "3,shiny specular")
+                    {
+                        spec_coeff_func.Value.ClampRangeMin = cook_shiny.spec_coeff;
+                        rough_func.Value.ClampRangeMin = cook_shiny.roughness;
+                        area_func.Value.ClampRangeMin = cook_shiny.area_contr;
+                        anal_func.Value.ClampRangeMin = cook_shiny.anal_contr;
+                        env_func.Value.ClampRangeMin = cook_shiny.env_contr;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Shader {shader.name} had an invalid specular setting, odd.");
+                    }
                 }
                 
                 // Dynamic env mapping?
