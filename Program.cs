@@ -17,6 +17,10 @@ class Shader
     public string glob_mat { get; set; }
     public string template { get; set; }
     public List<Parameter> parameters { get; set; }
+    public string spec_col { get; set; }
+    public string spec_glnc { get; set; }
+    public string env_tint { get; set; }
+    public string env_glnc { get; set; }
 }
 
 class Parameter
@@ -310,6 +314,10 @@ class Program
             XmlNode root = shader_file.DocumentElement;
             List<Parameter> shader_parameters = new List<Parameter>();
             string shader_name = (new DirectoryInfo(xml_file).Name).Replace(".xml", "");
+            string specular_col = "";
+            string specular_glc_col = "";
+            string env_col = "";
+            string env_glc_col = "";
 
             XmlNodeList params_block = root.SelectNodes(".//block[@name='parameters']");
             string shd_templ = root.SelectSingleNode("./tag_reference[@name='template']").InnerText.Trim();
@@ -325,75 +333,95 @@ class Program
                     if (element != null)
                     {
                         string prm_name = element.SelectSingleNode("./field[@name='name']").InnerText.Trim();
-                        string prm_type = element.SelectSingleNode("./field[@name='type']").InnerText.Trim();
-                        string prm_bitmap = element.SelectSingleNode("./tag_reference[@name='bitmap']").InnerText.Trim();
-                        string prm_value = element.SelectSingleNode("./field[@name='const value']").InnerText.Trim();
-                        string prm_colour = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
-                        XmlNode anim_data_block = element.SelectSingleNode("./block[@name='animation properties']");
-                        sbyte byte1_scaleX = new sbyte();
-                        byte byte2_scaleX = new byte();
-                        sbyte byte1_scaleY = new sbyte();
-                        byte byte2_scaleY = new byte();
 
-                        if (anim_data_block != null)
+                        // Check if it is specular or env colour info. If so, add to shader data and skip param
+                        if (prm_name == "specular_color")
                         {
-                            // Animation data exists
-                            foreach (XmlNode anim_data in anim_data_block)
+                            specular_col = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                        }
+                        else if (prm_name == "specular_glancing_color")
+                        {
+                            specular_glc_col = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                        }
+                        else if (prm_name == "env_tint_color")
+                        {
+                            env_col = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                        }
+                        else if (prm_name == "env_glancing_tint_color")
+                        {
+                            env_glc_col = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                        }
+                        else
+                        {
+                            string prm_type = element.SelectSingleNode("./field[@name='type']").InnerText.Trim();
+                            string prm_bitmap = element.SelectSingleNode("./tag_reference[@name='bitmap']").InnerText.Trim();
+                            string prm_value = element.SelectSingleNode("./field[@name='const value']").InnerText.Trim();
+                            string prm_colour = element.SelectSingleNode("./field[@name='const color']").InnerText.Trim();
+                            XmlNode anim_data_block = element.SelectSingleNode("./block[@name='animation properties']");
+                            sbyte byte1_scaleX = new sbyte();
+                            byte byte2_scaleX = new byte();
+                            sbyte byte1_scaleY = new sbyte();
+                            byte byte2_scaleY = new byte();
+
+                            if (anim_data_block != null)
                             {
-                                string type = anim_data.SelectSingleNode("./field[@name='type']").InnerText.Trim();
-                                if (type.Contains("bitmap scale x"))
+                                // Animation data exists
+                                foreach (XmlNode anim_data in anim_data_block)
                                 {
-                                    // Grab x scale
-                                    XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
-                                    foreach (XmlNode index in data_block)
+                                    string type = anim_data.SelectSingleNode("./field[@name='type']").InnerText.Trim();
+                                    if (type.Contains("bitmap scale x"))
                                     {
-                                        // Indices 6 and 7 contain the scale value bytes
-                                        if (index.Attributes["index"]?.Value == "6")
+                                        // Grab x scale
+                                        XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
+                                        foreach (XmlNode index in data_block)
                                         {
-                                            byte1_scaleX = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
-                                        }
-                                        else if (index.Attributes["index"]?.Value == "7")
-                                        {
-                                            byte2_scaleX = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
-                                            break;
+                                            // Indices 6 and 7 contain the scale value bytes
+                                            if (index.Attributes["index"]?.Value == "6")
+                                            {
+                                                byte1_scaleX = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                            }
+                                            else if (index.Attributes["index"]?.Value == "7")
+                                            {
+                                                byte2_scaleX = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                else if (type.Contains("bitmap scale y"))
-                                {
-                                    // Grab y scale
-                                    XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
-                                    foreach (XmlNode index in data_block)
+                                    else if (type.Contains("bitmap scale y"))
                                     {
-                                        // Indices 6 and 7 contain the scale value bytes
-                                        if (index.Attributes["index"]?.Value == "6")
+                                        // Grab y scale
+                                        XmlNode data_block = anim_data.SelectSingleNode("./block[@name='data']");
+                                        foreach (XmlNode index in data_block)
                                         {
-                                            byte1_scaleY = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
-                                        }
-                                        else if (index.Attributes["index"]?.Value == "7")
-                                        {
-                                            byte2_scaleY = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
-                                            break;
+                                            // Indices 6 and 7 contain the scale value bytes
+                                            if (index.Attributes["index"]?.Value == "6")
+                                            {
+                                                byte1_scaleY = sbyte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                            }
+                                            else if (index.Attributes["index"]?.Value == "7")
+                                            {
+                                                byte2_scaleY = byte.Parse(index.SelectSingleNode("./field[@name='Value']").InnerText.Trim());
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             }
+
+                            shader_parameters.Add(new Parameter
+                            {
+                                name = prm_name,
+                                type = prm_type,
+                                bitmap = prm_bitmap,
+                                value = prm_value,
+                                colour = prm_colour,
+                                scalex_1 = byte1_scaleX,
+                                scalex_2 = byte2_scaleX,
+                                scaley_1 = byte1_scaleY,
+                                scaley_2 = byte2_scaleY,
+
+                            });
                         }
-
-                        
-
-                        shader_parameters.Add(new Parameter
-                        {
-                            name = prm_name,
-                            type = prm_type,
-                            bitmap = prm_bitmap,
-                            value = prm_value,
-                            colour = prm_colour,
-                            scalex_1 = byte1_scaleX,
-                            scalex_2 = byte2_scaleX,
-                            scaley_1 = byte1_scaleY,
-                            scaley_2 = byte2_scaleY,
-                        });
 
                         i++;
                     }
@@ -408,7 +436,11 @@ class Program
                 name = shader_name,
                 glob_mat = shd_globmat,
                 template = shd_templ,
-                parameters = shader_parameters
+                parameters = shader_parameters,
+                spec_col = specular_col,
+                spec_glnc = specular_glc_col,
+                env_tint = env_col,
+                env_glnc = env_glc_col
             }); ;
         }
         return all_shader_data;
