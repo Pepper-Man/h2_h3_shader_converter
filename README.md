@@ -10,7 +10,7 @@ A C# program for converting H2 shader tags into H3 format. This is primarily bui
 * Creates all shaders referenced in the given BSP(s)
 * Can handle special plasma shaders
 * Can handle basic shader foliage for trees and bushes
-* Within each shader, this program automatically sets:
+* Within each shader, this program automatically sets (if required):
     * Base map
     * Standard bump mapping
     * Detail map(s) (handles single, two-detail/detail_blend and three-detail)
