@@ -32,5 +32,8 @@ A C# program for converting H2 shader tags into H3 format. This is primarily bui
 * Run this .exe, provide the file paths when prompted.
 
 # Notes
-
 * There will very likely be bugs and issues that I haven't caught. Please let me know on Discord - `pepperman`
+
+# Credits
+* All code by me
+* Special thanks to [Crisp](https://github.com/ILoveAGoodCrisp) and [Krevil](https://github.com/Krevil) for their assistance with ManagedBlam
