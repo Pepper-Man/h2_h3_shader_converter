@@ -224,7 +224,7 @@ class Program
 
     static List<string> GetShaders(string bsp_path)
     {
-        Console.WriteLine("Beginning parsing XML");
+        Console.WriteLine("Parsing XML for " + bsp_path);
 
         XmlDocument bspfile = new XmlDocument();
         bspfile.Load(bsp_path);
@@ -1849,7 +1849,7 @@ class Program
                         string arguments = string.Join(" ", argumentList);
                         string tool_path = h3ek_path + @"\tool.exe";
 
-                        Console.WriteLine($"Reimporting bitmap {bitmap_filename} as DXT5 to make sure alpha works...");
+                        Console.WriteLine($"Reimporting bitmap {bitmap_filename} as DXT5 to make sure alpha works for transparency...");
                         RunTool(tool_path, arguments, h3ek_path);
 
                         // Add alpha test map parameter
