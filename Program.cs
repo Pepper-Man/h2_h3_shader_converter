@@ -66,7 +66,7 @@ class Program
 
         while (true)
         {
-            Console.WriteLine("Please enter the path to the H3 scenario file you wish to patch:");
+            Console.WriteLine("Please enter the path to the H3 scenario you want to make the shaders for:");
             h3_scen = Console.ReadLine().Trim('"');
             if (h3_scen.EndsWith(".scenario"))
             {
@@ -220,6 +220,8 @@ class Program
                 Console.WriteLine(bitmap_issue);
             }
         }
+        Console.WriteLine("\nFinished! You may now close the program.");
+        Console.ReadLine();
     }
 
     static List<string> GetShaders(string bsp_path)
