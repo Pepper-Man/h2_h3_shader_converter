@@ -61,30 +61,56 @@ class Program
     static async Task Main(string[] args)
     {
         List<string> bsp_paths = new List<string>();
-
+        string h3_scen = "";
 
         Console.WriteLine("H2 to H3 Shader Converter by PepperMan\n\n");
-        /*
+
         while (true)
         {
-            Console.WriteLine("\nPlease enter the path to an exported H2 scenario XML file.\nThis must be the full path with file extension - This is the scenario the shaders list will be grabbed from:");
+            Console.WriteLine("Please enter the path to the H3 scenario file you wish to patch:");
+            h3_scen = Console.ReadLine().Trim('"');
+            if (h3_scen.EndsWith(".scenario"))
+            {
+                if (h3_scen.Contains("H3EK"))
+                {
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("\nLooks like a scenario tag, but doesn't seem to be in the H3EK directory. Please try again.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("\nFile does not look like a .scenario tag. Please try again.");
+            }
+        }
+
+        while (true)
+        {
+            Console.WriteLine("\nPlease enter the path to an exported H2 BSP XML file.\nThis must be the full path with file extension - This is the scenario the shaders list will be grabbed from:");
             string bsp_path = Console.ReadLine().Trim('"');
-            if (bsp_path.EndsWith(".xml") || bsp_path.EndsWith(".txt")) // Should really be .xml, but we'll let .xml slide too (until it crashes :) )
+            if (bsp_path.EndsWith(".xml") || bsp_path.EndsWith(".txt")) // Should really be .xml, but we'll let .txt slide too (until it crashes :) )
             {
                 bsp_paths.Add(bsp_path);
-                break;
+                Console.WriteLine("\nSuccessfully added!\nWould you like to add another BSP? (Must be from the same scenario) Y/N:");
+                string add_more = Console.ReadLine();
+                if (add_more.ToLower() != "y" && add_more.ToLower() != "yes")
+                {
+                    break;
+                }
             }
             else
             {
                 Console.WriteLine("\nFile doesn't look like a .txt or .xml file. Please try again.");
             }
         }
-        */
+
         // Temporary hardcoding for quick debugging
-        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
-        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_2.xml");
-        bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_3.xml");
-        string h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
+        //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
+        //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_2.xml");
+        //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_3.xml");
+        //h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
