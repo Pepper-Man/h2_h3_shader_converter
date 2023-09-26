@@ -61,9 +61,10 @@ class Program
     {
         List<string> bsp_paths = new List<string>();
         string h3_scen = "";
+        string existing_bitmaps = "";
 
         Console.WriteLine("H2 to H3 Shader Converter by PepperMan\n\n");
-
+        
         while (true)
         {
             Console.WriteLine("Please enter the path to the H3 scenario you want to make the shaders for:");
@@ -105,11 +106,30 @@ class Program
             }
         }
 
+        while (true)
+        {
+            Console.WriteLine("\nDo you wish to use existing .tif files from the scenario's (data) bitmaps folder to avoid extracting them again? Y/N");
+            string bitm_folder_input = Console.ReadLine();
+            if (bitm_folder_input.ToLower() == "y")
+            {
+                existing_bitmaps = Path.GetDirectoryName(h3_scen.Replace("tags", "data")) + "\\bitmaps";
+                break;
+            }
+            else if (bitm_folder_input.ToLower() == "n")
+            {
+                break;
+            }
+            else
+            {
+                Console.WriteLine("Sorry, I didn't understand your answer. Please write Y or N.");
+            }
+        }
         // Temporary hardcoding for quick debugging
         //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_1.xml");
         //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_2.xml");
         //bsp_paths.Add(@"C:\Program Files (x86)\Steam\steamapps\common\H2EK\tags\scenarios\solo\03a_oldmombasa\earthcity_3.xml");
         //h3_scen = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\tags\halo_2\levels\singleplayer\oldmombasa\oldmombasa.scenario";
+        //existing_bitmaps = @"C:\Program Files (x86)\Steam\steamapps\common\H3EK\data\halo_2\levels\singleplayer\oldmombasa\bitmaps";
 
         string bitmaps_dir = (h3_scen.Substring(0, h3_scen.LastIndexOf('\\')) + "\\bitmaps").Replace("tags", "data");
         string h2ek_path = bsp_paths[0].Substring(0, bsp_paths[0].IndexOf("H2EK") + "H2EK".Length);
@@ -202,11 +222,29 @@ class Program
                 }
             }
         }
+        if (existing_bitmaps == "")
+        {
+            // Grab all bitmaps
+            Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
+            Task task = ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
+            await WaitForTaskCompletion(task);
+            Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
+        }
+        else
+        {
+            // Existing bitmaps folder has been provided, check if any are missing
+            string[] existing_files = Directory.GetFiles(existing_bitmaps, "*.tif").Select(Path.GetFileNameWithoutExtension).ToArray();
+            List<string> missing_files = all_bitmap_refs
+            .Where(refName => !existing_files.Any(existFile => refName.Contains(existFile)))
+            .ToList();
 
-        Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting bitmap tags to TGA...");
-        Task task = ExtractBitmaps(all_bitmap_refs, h2ek_path, tga_output_path);
-        await WaitForTaskCompletion(task);
-        Console.WriteLine("\nExtracted all bitmap to .TGA\nRunning .TIF conversion process...");
+            // Grab missing bitmaps
+            Console.WriteLine("\nObtained all referenced bitmaps!\n\nExtracting any missing bitmaps to TGA...");
+            Task task = ExtractBitmaps(missing_files, h2ek_path, tga_output_path);
+            await WaitForTaskCompletion(task);
+            Console.WriteLine("\nExtracted all missing bitmaps to .TGA\nRunning .TIF conversion process...");
+        }
+        
         ManagedBlamSystem.InitializeProject(InitializationType.TagsOnly, h3ek_path);
         string[] errors = TGAToTIF(tga_output_path, bitmaps_dir, h3ek_path);
         Console.WriteLine("\nFinished importing bitmaps into H3.\nCreating H3 shader tags...");
