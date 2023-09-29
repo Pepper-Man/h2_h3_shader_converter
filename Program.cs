@@ -1607,8 +1607,8 @@ class Program
 
                         param_index++;
                     }
-                    
-                    if (param.name == "detail_map_a" || param.name == "blend_detail_map_1")
+
+                    if (param.name == "overlay_detail_map" && !shader.template.Contains("detail"))
                     {
                         string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
                         string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
@@ -1671,7 +1671,70 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "secondary_detail_map" || param.name == "detail_map_b" || param.name == "blend_detail_map_2")
+                    if ((param.name == "detail_map_a" || param.name == "blend_detail_map_1") && shader.template.Contains("detail"))
+                    {
+                        string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
+                        string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
+
+                        // Add detail map parameter
+                        ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
+                        var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
+                        param_name.Data = "detail_map";
+                        var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
+                        param_type.Value = 0;
+
+                        // Set detail map
+                        var detail_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
+                        detail_map.Path = TagPath.FromPathAndType(detail_map_path, "bitm*");
+
+                        // Set aniso
+                        var flags = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap flags");
+                        flags.Data = 1;
+                        var aniso = (TagFieldElementInteger)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/ShortInteger:bitmap filter mode");
+                        aniso.Data = 6;
+
+                        // Scale function data
+                        byte byte1_x = param.scalex_2;
+                        byte byte2_x = (byte)(256 + param.scalex_1); // Convert to unsigned
+                        byte byte1_y = param.scaley_2;
+                        byte byte2_y = (byte)(256 + param.scaley_1); // Convert to unsigned
+                        byte[] scales = new byte[] { byte1_x, byte2_x, byte1_y, byte2_y };
+                        bool all_zero = true;
+
+                        foreach (byte scale in scales)
+                        {
+                            if (scale != 0)
+                            {
+                                all_zero = false;
+                                break;
+                            }
+                        }
+
+                        if (!all_zero) // No need to bother if scale values arent provided
+                        {
+                            if ((byte1_x == byte1_y) && (byte2_x == byte2_y)) // Uniform scale check
+                            {
+                                AddShaderScaleFunc(tagFile, 2, param_index, byte1_x, byte2_x, 0);
+                            }
+                            else // Scale is non-uniform, handle separately
+                            {
+                                int anim_index = 0;
+                                if (!(byte1_x == 0 && byte2_x == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 3, param_index, byte1_x, byte2_x, anim_index);
+                                    anim_index++;
+                                }
+                                if (!(byte1_y == 0 && byte2_y == 0))
+                                {
+                                    AddShaderScaleFunc(tagFile, 4, param_index, byte1_y, byte2_y, anim_index);
+                                }
+                            }
+                        }
+
+                        param_index++;
+                    }
+
+                    if ((param.name == "secondary_detail_map" || param.name == "detail_map_b" || param.name == "blend_detail_map_2") && shader.template.Contains("detail"))
                     {
                         // Set two detail
                         var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
@@ -1738,7 +1801,7 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "detail_map_c" || param.name == "overlay_detail_map")
+                    if ((param.name == "detail_map_c" || param.name == "overlay_detail_map") && shader.template.Contains("detail"))
                     {
                         // Set three detail blend
                         var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
