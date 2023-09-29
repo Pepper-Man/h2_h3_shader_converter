@@ -941,6 +941,11 @@ class Program
                         param_index++;
                     }
 
+                    if (param.name == "lightmap_alphatest_map")
+                    {
+
+                    }
+
                     if (param.name == "bump_map")
                     {
                         string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
@@ -1605,7 +1610,7 @@ class Program
                         param_index++;
                     }
                     
-                    if (param.name == "detail_map_a")
+                    if (param.name == "detail_map_a" || param.name == "blend_detail_map_1")
                     {
                         string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
                         string detail_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
@@ -1668,7 +1673,7 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "secondary_detail_map" || param.name == "detail_map_b")
+                    if (param.name == "secondary_detail_map" || param.name == "detail_map_b" || param.name == "blend_detail_map_2")
                     {
                         // Set two detail
                         var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
@@ -1735,7 +1740,7 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "detail_map_c")
+                    if (param.name == "detail_map_c" || param.name == "overlay_detail_map")
                     {
                         // Set three detail blend
                         var albedo_option = (TagFieldElementInteger)tagFile.SelectField("Struct:render_method[0]/Block:options[0]/ShortInteger:short");
@@ -1814,7 +1819,7 @@ class Program
                         var param_type = (TagFieldEnum)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/LongEnum:parameter type");
                         param_type.Value = 0;
 
-                        // Set base map
+                        // Set bump map
                         var bump_map = (TagFieldReference)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/Reference:bitmap");
                         bump_map.Path = TagPath.FromPathAndType(bump_map_path, "bitm*");
 
