@@ -708,7 +708,14 @@ class Program
                     if (bitmap_data.type.Contains("height"))
                     {
                         var height = (TagFieldElementSingle)tagFile.SelectField("Real:bump map height");
-                        height.Data = float.Parse(bitmap_data.bmp_hgt);
+                        if (float.Parse(bitmap_data.bmp_hgt) >= 15.0f)
+                        {
+                            height.Data = 10.0f;
+                        }
+                        else
+                        {
+                            height.Data = float.Parse(bitmap_data.bmp_hgt);
+                        } 
                     }
 
                     tagFile.Save();
