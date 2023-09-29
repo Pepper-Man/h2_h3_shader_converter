@@ -941,38 +941,36 @@ class Program
                         param_index++;
                     }
 
-                    if (param.name == "lightmap_alphatest_map")
-                    {
-
-                    }
-
-                    if (param.name == "bump_map")
+                    if (param.name == "bump_map" || param.name == "lightmap_alphatest_map")
                     {
                         string bitmap_filename = new DirectoryInfo(param.bitmap).Name;
                         string alpha_map_path = Path.Combine(bitmap_tags_dir, bitmap_filename);
 
-                        // Reimport bump map as colour map to get alpha test working
-                        TagPath bitmap_path = TagPath.FromPathAndType(alpha_map_path, "bitm*");
-
-                        using (var bitmapFile = new TagFile(bitmap_path))
+                        if (param.name == "bump_map")
                         {
-                            var compr = (TagFieldEnum)bitmapFile.SelectField("ShortEnum:force bitmap format");
-                            compr.Value = 2;
-                            bitmapFile.Save();
+                            // Reimport bump map as colour map to get alpha test working
+                            TagPath bitmap_path = TagPath.FromPathAndType(alpha_map_path, "bitm*");
+
+                            using (var bitmapFile = new TagFile(bitmap_path))
+                            {
+                                var compr = (TagFieldEnum)bitmapFile.SelectField("ShortEnum:force bitmap format");
+                                compr.Value = 2;
+                                bitmapFile.Save();
+                            }
+
+                            List<string> argumentList = new List<string>
+                            {
+                                "reimport-bitmaps-single",
+                                alpha_map_path
+                            };
+
+                            string arguments = string.Join(" ", argumentList);
+                            string tool_path = h3ek_path + @"\tool.exe";
+
+                            Console.WriteLine($"Reimporting bitmap {bitmap_filename} as colour for shader foliage...");
+                            RunTool(tool_path, arguments, h3ek_path);
                         }
-
-                        List<string> argumentList = new List<string>
-                        {
-                            "reimport-bitmaps-single",
-                            alpha_map_path
-                        };
-
-                        string arguments = string.Join(" ", argumentList);
-                        string tool_path = h3ek_path + @"\tool.exe";
-
-                        Console.WriteLine($"Reimporting bitmap {bitmap_filename} as colour for shader foliage...");
-                        RunTool(tool_path, arguments, h3ek_path);
-
+                        
                         // Add alpha map parameter
                         ((TagFieldBlock)tagFile.SelectField("Struct:render_method[0]/Block:parameters")).AddElement();
                         var param_name = (TagFieldElementStringID)tagFile.SelectField($"Struct:render_method[0]/Block:parameters[{param_index}]/StringID:parameter name");
