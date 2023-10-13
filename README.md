@@ -32,7 +32,7 @@ A C# program for converting H2 shader tags into H3 format. This is primarily bui
 * Run this .exe, provide the file paths when prompted.
 
 # Notes
-* The program may crash when parsing the XML of a BSP. If this happens, its because the XML file contains erroneous data that needs to be removed. You will need to open the XML file in a text editor, and located and remove any instances of `xFF`.
+* The program may crash when parsing the XML of a BSP. If this happens, its because the XML file contains erroneous data that needs to be removed. You will need to open the XML file in a text editor, and locate and remove any instances of `xFF`.
 * There will very likely be bugs and issues that I haven't caught. Please let me know on Discord - `pepperman`
 
 # Credits
