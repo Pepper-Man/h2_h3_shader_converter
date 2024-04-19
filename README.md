@@ -1,3 +1,11 @@
+# THIS REPO HAS BEEN DEPRECATED AND IS NO LONGER RECOMMENDED OR SUPPORTED
+## Further development is now taking place under the [UI Version](https://github.com/Pepper-Man/h2_h3_converter_ui)
+
+
+____________________
+____________________
+____________________
+
 # H2 to H3 Shader Converter
 A C# program for converting H2 shader tags into H3 format. This is primarily built for use by the porting team I am in, but feel free to use it for you own ports. As of right now, this only supports BSP data, not objects.
 
